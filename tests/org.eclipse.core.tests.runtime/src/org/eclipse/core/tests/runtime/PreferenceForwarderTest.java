@@ -75,14 +75,12 @@ public class PreferenceForwarderTest extends RuntimeTest {
 	 * @see TestCase#setUp()
 	 */
 	protected void setUp() {
-		// do nothing
 	}
 
 	/*
 	 * @see TestCase#tearDown()
 	 */
 	protected void tearDown() {
-		// do nothing
 	}
 
 	public void testConstants() {

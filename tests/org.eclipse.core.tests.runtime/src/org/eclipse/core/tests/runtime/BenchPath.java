@@ -19,7 +19,6 @@ import org.eclipse.core.tests.harness.CorePerformanceTest;
 
 public class BenchPath extends CorePerformanceTest {
 	public BenchPath() {
-		super();
 	}
 
 	public BenchPath(String testName) {

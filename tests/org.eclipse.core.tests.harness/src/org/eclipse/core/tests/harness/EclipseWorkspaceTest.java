@@ -286,9 +286,9 @@ public class EclipseWorkspaceTest extends TestCase {
 					break;
 				default :
 					if (hierarchy[i].charAt(hierarchy[i].length() - 1) == IPath.SEPARATOR)
-						result[i] = root.getFolder(path);
+						result[i] = (IResource) root.getFolder(path);
 					else
-						result[i] = root.getFile(path);
+						result[i] = (IResource) root.getFile(path);
 					break;
 			}
 		}
@@ -448,7 +448,7 @@ public class EclipseWorkspaceTest extends TestCase {
 	 */
 	public void ensureDoesNotExistInWorkspace(final IResource[] resources) {
 		IWorkspaceRunnable body = new IWorkspaceRunnable() {
-			public void run(IProgressMonitor monitor) {
+			public void run(IProgressMonitor monitor) throws CoreException {
 				for (int i = 0; i < resources.length; i++)
 					ensureDoesNotExistInWorkspace(resources[i]);
 			}

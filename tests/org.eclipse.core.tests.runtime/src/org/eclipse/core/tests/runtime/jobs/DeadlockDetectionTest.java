@@ -37,6 +37,7 @@ public class DeadlockDetectionTest extends TestCase {
 			try {
 				Thread.sleep(10);
 			} catch (InterruptedException e) {
+
 			}
 		}
 	}
@@ -1069,6 +1070,7 @@ public class DeadlockDetectionTest extends TestCase {
 		try {
 			Thread.sleep(5000);
 		} catch (InterruptedException e) {
+
 		}
 
 		status[0] = TestBarrier.STATUS_DONE;
@@ -1079,6 +1081,7 @@ public class DeadlockDetectionTest extends TestCase {
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e1) {
+
 				}
 				//sanity check to avoid hanging tests
 				assertTrue("Timeout waiting for jobs to finish.", ++j < 1000);
