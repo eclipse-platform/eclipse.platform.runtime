@@ -31,7 +31,6 @@ import org.eclipse.core.boot.IPlatformConfiguration.ISitePolicy;
 public class PlatformConfiguration implements IPlatformConfiguration {
 
 	private static PlatformConfiguration currentPlatformConfiguration = null;
-	static boolean r2_0 = false;
 
 	private URL configLocation;
 	private HashMap sites;
@@ -680,8 +679,6 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	static void startup(URL url, String configArg) throws IOException {			
 		// for 1.0 compatibility
 		LaunchInfo.startup(url);
-		if (!r2_0) 
-			return;
 		
 		// create current configuration
 		if (currentPlatformConfiguration == null)
@@ -691,8 +688,6 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	static void shutdown() throws IOException {
 		// for 1.0 compatibility
 		LaunchInfo.shutdown();
-		if (!r2_0)
-			return;
 		
 		// save platform configuration
 		PlatformConfiguration config = getCurrent();

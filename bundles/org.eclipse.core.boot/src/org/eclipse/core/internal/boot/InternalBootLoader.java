@@ -105,15 +105,6 @@ public final class InternalBootLoader {
 	private static final String WS = "-ws";
 	private static final String ARCH = "-arch";
 	private static final String USAGE = "-?";
-	// temporary declarations in support of 2.0 startup command line argument. These will
-	// be removed once the startup support is fully transitioned to the R2.0 configuration
-	// mechanism
-	private static final String R2_0_STARTUP = "-r2.0";
-	private static boolean r2_0 = true;
-	static {		
-		LaunchInfo.r2_0 = true;
-		PlatformConfiguration.r2_0 = true;
-	}
 
 	// Development mode constants
 	private static final String PLUGIN_JARS = "plugin.jars";
@@ -227,6 +218,7 @@ public static PlatformConfiguration getCurrentPlatformConfiguration() {
 }
 /**
  * @see BootLoader
+ * @deprecated will be removed before milestone 3
  */
 public static IInstallInfo getInstallationInfo() {
 	return LaunchInfo.getCurrent();
@@ -710,18 +702,6 @@ private static String[] processCommandLine(String[] args) throws Exception {
 		if (args[i].equalsIgnoreCase(USAGE)) {
 			usage = true;
 			found = true;
-		}
-
-		// look for the R2.0 configuration flag. This is a temporary flag used to enable the 
-		// R2.0 plugin path computation instead of the current R1.0 computation performed
-		// in LaunchInfo.getPlugInPath()/getFragmentPath(). This flag will be removed
-		// once startup code is fully transitioned to the R2.0 configuration mechanism
-		if (args[i].equalsIgnoreCase(R2_0_STARTUP)) {
-			r2_0 = true;
-			LaunchInfo.r2_0 = true;
-			PlatformConfiguration.r2_0 = true;
-			found = true;
-			System.out.println("R2.0 startup mode activated");
 		}
 
 		if (found) {

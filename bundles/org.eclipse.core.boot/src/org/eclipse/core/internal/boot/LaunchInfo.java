@@ -27,17 +27,15 @@ import java.util.StringTokenizer;
 import org.eclipse.core.boot.BootLoader;
 import org.eclipse.core.boot.IInstallInfo;
 import org.eclipse.core.boot.IPlatformConfiguration;
-import org.eclipse.core.internal.boot.update.BootUpdateManager;
 
 public class LaunchInfo implements IInstallInfo {
+	
+	private boolean r2_0 = true; // running in 2.0 mode
 
 	private static final String PLATFORM_COMPONENT_ID = "org.eclipse.platform";
 	private static final String BOOT_PLUGIN_ID = "org.eclipse.core.boot";
 
 	private static LaunchInfo profile = null;
-
-	// temporary flag signalling 2.0 startup. Is set by BootLoader command line processing code.
-	static boolean r2_0 = false;
 
 	private URL baseUrl;
 	private URL infoUrl;
@@ -301,11 +299,17 @@ public class LaunchInfo implements IInstallInfo {
 				}
 		}
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public LaunchInfo(History history) throws IOException {
 		this(history.getLaunchInfoURL());
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void addStatus(Status[] status) {
 		if (status == null || status.length == 0)
 			return;
@@ -314,7 +318,10 @@ public class LaunchInfo implements IInstallInfo {
 		for (int i = 0; i < status.length; i++)
 			this.status.add(status[i]);
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void addStatus(Status status) {
 		if (status == null)
 			return;
@@ -452,6 +459,9 @@ public class LaunchInfo implements IInstallInfo {
 		System.out.println("LaunchInfo: " + s);
 	}
 
+	/**
+	 * @deprecated
+	 */
 	synchronized public void flush() {
 
 		if (!isUpdateEnabled())
@@ -479,18 +489,25 @@ public class LaunchInfo implements IInstallInfo {
 		temp.toArray(result);
 		return result;
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public String getApplication() {
 
 		return app;
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public String getApplicationConfiguration() {
 
 		return appconfig;
 	}
 	/**
 	 * @see ILaunchInfo#getApplicationConfigurationIdentifier
+	 * @deprecated
 	 */
 	public String getApplicationConfigurationIdentifier() {
 		String appCfig = getApplicationConfiguration();
@@ -499,12 +516,16 @@ public class LaunchInfo implements IInstallInfo {
 		else
 			return appCfig;
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public URL getBaseURL() {
 		return baseUrl;
 	}
 	/**
 	 * @see ILaunchInfo#getComponentInstallURLFor
+	 * @deprecated
 	 */
 	public URL getComponentInstallURLFor(String componentId) {
 		if (componentId == null || componentId.trim().equals(""))
@@ -515,12 +536,16 @@ public class LaunchInfo implements IInstallInfo {
 			throw new IllegalStateException();
 		}
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public VersionedIdentifier[] getComponents() {
 		return get(comps);
 	}
 	/**
 	 * @see ILaunchInfo#getConfigurationInstallURLFor
+	 * @deprecated
 	 */
 	public URL getConfigurationInstallURLFor(String configurationId) {
 		if (configurationId == null || configurationId.trim().equals(""))
@@ -531,14 +556,24 @@ public class LaunchInfo implements IInstallInfo {
 			throw new IllegalStateException();
 		}
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public VersionedIdentifier[] getConfigurations() {
 		return get(configs);
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public static LaunchInfo getCurrent() {
 		return profile;
 	}
+	
+	/**
+	 * @deprecated
+	 */
 	public URL[] getFragmentPath() {
 
 		ArrayList path = new ArrayList();
@@ -585,7 +620,10 @@ public class LaunchInfo implements IInstallInfo {
 		return result;
 
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public VersionedIdentifier[] getFragments() {
 		return get(fragments, fragmentsUnmgd);
 	}
@@ -641,12 +679,18 @@ public class LaunchInfo implements IInstallInfo {
 		result.toArray(array);
 		return array;
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public int getHistoryCount() {
 
 		return historyCount;
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public String getIdentifier() {
 		if (r2_0) {
 			IPlatformConfiguration cfig = BootLoader.getCurrentPlatformConfiguration();
@@ -663,6 +707,7 @@ public class LaunchInfo implements IInstallInfo {
 	}
 	/**
 	 * @see ILaunchInfo#getInstalledComponentIdentifiers
+	 * @deprecated
 	 */
 	public String[] getInstalledComponentIdentifiers() {
 		VersionedIdentifier[] c = getComponents();
@@ -673,6 +718,7 @@ public class LaunchInfo implements IInstallInfo {
 	}
 	/**
 	 * @see ILaunchInfo#getInstalledConfigurationIdentifiers
+	 * @deprecated
 	 */
 	public String[] getInstalledConfigurationIdentifiers() {
 		VersionedIdentifier[] c = getConfigurations();
@@ -681,10 +727,17 @@ public class LaunchInfo implements IInstallInfo {
 			result[i] = c[i].toString();
 		return result;
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public History[] getLaunchInfoHistory() {
 		return getHistory(infoUrl);
 	}
+	
+	/**
+	 * @deprecated
+	 */
 	public URL[] getPluginPath() {
 
 		ArrayList path = new ArrayList();
@@ -731,15 +784,26 @@ public class LaunchInfo implements IInstallInfo {
 
 		return result;
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public VersionedIdentifier[] getPlugins() {
 		return get(plugins, pluginsUnmgd);
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public String getRuntime() {
 
 		return platform;
 	}
+	
+	/**
+	 * @deprecated in 2.0 stream it is no longer necessary for UI plugin
+	 * to call this method. Will be removed before milestone 3 (2/15)
+	 */
 	public Status[] getStatus() {
 		if (!hasStatus())
 			return null;
@@ -749,13 +813,21 @@ public class LaunchInfo implements IInstallInfo {
 			return result;
 		}
 	}
+	
+	/**
+	 * @deprecated in 2.0 stream it is no longer necessary for UI plugin
+	 * to call this method. Will be removed before milestone 3 (2/15)
+	 */
 	public boolean hasStatus() {
 		if (status == null || status.size() == 0)
 			return false;
 		else
 			return true;
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public boolean installPending(
 		List confList,
 		List compList,
@@ -788,7 +860,10 @@ public class LaunchInfo implements IInstallInfo {
 
 		return checkpoint(); // harden state
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public boolean installConfirmed(
 		List confList,
 		List compList,
@@ -816,11 +891,17 @@ public class LaunchInfo implements IInstallInfo {
 
 		return checkpoint(); // harden state
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public boolean isDanglingComponent(VersionedIdentifier component) {
 		return compsDang.contains(component);
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void isDanglingComponent(
 		VersionedIdentifier component,
 		boolean isDangling) {
@@ -840,7 +921,10 @@ public class LaunchInfo implements IInstallInfo {
 			compsDang.remove(component);
 		}
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public boolean isDominantConfiguration(String config) {
 		if (config == null || config.trim().equals(""))
 			return false;
@@ -850,14 +934,20 @@ public class LaunchInfo implements IInstallInfo {
 		VersionedIdentifier appId = new VersionedIdentifier(this.appconfig);
 		return argId.getIdentifier().equals(appId.getIdentifier());
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public boolean isPlatformComponent(String comp) {
 		if (comp == null || comp.trim().equals(""))
 			return false;
 		VersionedIdentifier vid = new VersionedIdentifier(comp);
 		return vid.getIdentifier().equals(PLATFORM_COMPONENT_ID);
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public boolean isRuntimePlugin(String plugin) {
 		if (plugin == null || plugin.trim().equals(""))
 			return false;
@@ -870,6 +960,10 @@ public class LaunchInfo implements IInstallInfo {
 		return URL_FILE.equals(u.getProtocol()) || URL_VA.equals(u.getProtocol());
 
 	}
+	
+	/**
+	 * @deprecated
+	 */
 	public boolean isUpdateEnabled() {
 		return isUpdateEnabled;
 	}
@@ -1050,7 +1144,7 @@ public class LaunchInfo implements IInstallInfo {
 		// update state
 		infoMap.remove(key + "." + INFO_CONFIGS);
 		infoMap.remove(key + "." + INFO_COMPS);
-		BootUpdateManager.uninstall(uninstallCfg, uninstallCmp);
+//		BootUpdateManager.uninstall(uninstallCfg, uninstallCmp);
 	}
 
 	private void processInfoChangesExisting(File dir, String info, String key) {
@@ -1101,7 +1195,7 @@ public class LaunchInfo implements IInstallInfo {
 		infoMap.remove(oldPrefix + INFO_COMPS);
 		infoMap.put(info + "." + stamp + "." + INFO_CONFIGS, newCfgIds);
 		infoMap.put(info + "." + stamp + "." + INFO_COMPS, newCmpIds);
-		BootUpdateManager.uninstall(uninstallCfg, uninstallCmp);
+//		BootUpdateManager.uninstall(uninstallCfg, uninstallCmp);
 	}
 
 	private void processInfoChangesNew(File dir, String info) {
@@ -1161,19 +1255,31 @@ public class LaunchInfo implements IInstallInfo {
 				inactive.add(id);
 		}
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void removeComponent(VersionedIdentifier component) {
 		remove(component, comps, compsInact);
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void removeConfiguration(VersionedIdentifier configuration) {
 		remove(configuration, configs, configsInact);
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void removeFragment(VersionedIdentifier fragment) {
 		remove(fragment, fragments, fragmentsInact);
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void removePlugin(VersionedIdentifier plugin) {
 		remove(plugin, plugins, pluginsInact);
 	}
@@ -1287,7 +1393,10 @@ public class LaunchInfo implements IInstallInfo {
 			// if we can't construct a good URL leave things asis
 		}
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	synchronized public void revertTo(History history) {
 
 		if (history == null)
@@ -1366,6 +1475,10 @@ public class LaunchInfo implements IInstallInfo {
 
 		return inactive;
 	}
+	
+	/**
+	 * @deprecated
+	 */
 	public static Object run(
 		String flag,
 		String value,
@@ -1386,7 +1499,7 @@ public class LaunchInfo implements IInstallInfo {
 				return null;
 			}
 			startup(base);
-			BootUpdateManager.uninstall(cookie);
+//			BootUpdateManager.uninstall(cookie);
 		}
 		return null;
 	}
@@ -1430,7 +1543,10 @@ public class LaunchInfo implements IInstallInfo {
 			setNewHistory();
 		}
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void setApplication(String app) {
 		if (this.app != null && !this.app.equals(app)) {
 			setNewHistory();
@@ -1450,11 +1566,17 @@ public class LaunchInfo implements IInstallInfo {
 				this.appconfig = DEFAULT_APP_CONFIG;
 		}
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void setComponent(VersionedIdentifier component) {
 		set(component, comps, compsInact);
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void setConfiguration(VersionedIdentifier config, String application) {
 		set(config, configs, configsInact);
 		if (this.appconfig.equals(DEFAULT_APP_CONFIG)
@@ -1528,11 +1650,17 @@ public class LaunchInfo implements IInstallInfo {
 
 		infoMap = new HashMap();
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void setFragment(VersionedIdentifier fragment) {
 		set(fragment, fragments, fragmentsInact, fragmentsUnmgd);
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void setHistoryCount(int count) {
 
 		if (count <= 0)
@@ -1546,6 +1674,7 @@ public class LaunchInfo implements IInstallInfo {
 	 * be installed (after they were discovered). If these items
 	 * do not exist on an active or inactive list already, they are added
 	 * to the corresponding inactive list.
+	 * @deprecated
 	 */
 	synchronized public void setInactive(
 		VersionedIdentifier[] configId,
@@ -1594,11 +1723,17 @@ public class LaunchInfo implements IInstallInfo {
 	private void setNewId() {
 		id = Long.toString((new java.util.Date()).getTime());
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void setPlugin(VersionedIdentifier plugin) {
 		set(plugin, plugins, pluginsInact, pluginsUnmgd);
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	public void setRuntime(VersionedIdentifier runtime) {
 		String platform = runtime == null ? null : runtime.toString();
 		if (this.platform != null && !this.platform.equals(platform)) {
@@ -1609,7 +1744,10 @@ public class LaunchInfo implements IInstallInfo {
 				this.platform = DEFAULT_PLATFORM;
 		}
 	}
-
+	
+	/**
+	 * @deprecated
+	 */
 	static void shutdown() {
 		if (profile == null)
 			return;
@@ -1628,6 +1766,10 @@ public class LaunchInfo implements IInstallInfo {
 				profile.uf.delete();
 		}
 	}
+	
+	/**
+	 * @deprecated
+	 */
 	static void startup(URL base) {
 
 		if (profile == null) {
@@ -1711,8 +1853,8 @@ public class LaunchInfo implements IInstallInfo {
 			}
 
 			// complete "installation" of new configurations and components	
-			if (configDelta.length > 0 || compDelta.length > 0)
-				profile.addStatus(BootUpdateManager.install(configDelta, compDelta));
+//			if (configDelta.length > 0 || compDelta.length > 0)
+//				profile.addStatus(BootUpdateManager.install(configDelta, compDelta));
 
 			// look for plugins	
 			path = (base.getFile() + PLUGINSDIR).replace('/', File.separatorChar);
@@ -1883,6 +2025,9 @@ public class LaunchInfo implements IInstallInfo {
 		synch(list, pluginsPendingDelete);
 	}
 
+	/**
+	 * @deprecated
+	 */
 	synchronized public void uninstall() {
 
 		// do history-based deletion sweep
