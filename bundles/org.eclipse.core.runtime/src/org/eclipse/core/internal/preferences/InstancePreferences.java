@@ -32,8 +32,14 @@ public class InstancePreferences extends EclipsePreferences {
 	private static boolean initialized = false;
 	private static IPath baseLocation;
 
-	static {
-		baseLocation = InternalPlatform.getDefault().getMetaArea().getStateLocation(Platform.PI_RUNTIME);
+	private static IPath getBaseLocation() {
+		// If we are running with -data=@none we won't have an instance location.
+		// By leaving the value of baseLocation as null we still allow the users
+		// to set preferences in this scope but the values will not be persisted
+		// to disk when #flush() is called.
+		if (baseLocation == null && Platform.getInstanceLocation() != null)
+			baseLocation = InternalPlatform.getDefault().getMetaArea().getStateLocation(Platform.PI_RUNTIME);
+		return baseLocation;
 	}
 
 	/**
@@ -61,7 +67,7 @@ public class InstancePreferences extends EclipsePreferences {
 		if (qualifier == null)
 			return;
 		// get the base location from the platform
-		location = computeLocation(baseLocation, qualifier);
+		location = computeLocation(getBaseLocation(), qualifier);
 	}
 
 	protected boolean isAlreadyLoaded(IEclipsePreferences node) {
@@ -81,6 +87,12 @@ public class InstancePreferences extends EclipsePreferences {
 		IPath path = new Path(absolutePath());
 		if (path.segmentCount() != 2)
 			return;
+		// If we are running with -data=@none we won't have an instance location.
+		if (Platform.getInstanceLocation() == null) {
+			if (InternalPlatform.DEBUG_PREFERENCES)
+				Policy.debug("Cannot load Legacy plug-in preferences since instance location is not set."); //$NON-NLS-1$
+			return;
+		}
 		String bundleName = path.segment(1);
 		// the preferences file is located in the plug-in's state area at a well-known name
 		// don't need to create the directory if there are no preferences to load
@@ -173,7 +185,7 @@ public class InstancePreferences extends EclipsePreferences {
 			return;
 		try {
 			synchronized (this) {
-				String[] names = computeChildren(baseLocation);
+				String[] names = computeChildren(getBaseLocation());
 				for (int i = 0; i < names.length; i++)
 					addChild(names[i], null);
 			}
