@@ -208,7 +208,7 @@ public class TableWriter {
 
 		for (int i = 0; i < exts.length; i++) {
 			IConfigurationElement[] ces = exts[i].getConfigurationElements();
-			outputStream.writeInt(ces.length); //this is not mandatory
+			outputStream.writeInt(ces.length);
 			for (int j = 0; j < ces.length; j++) {
 				saveConfigurationElement((ConfigurationElementHandle) ces[j], outputStream, extraOutput, 1);
 			}
