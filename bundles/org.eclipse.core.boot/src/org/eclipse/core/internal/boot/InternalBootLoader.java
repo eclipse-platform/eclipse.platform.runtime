@@ -205,7 +205,7 @@ public static URL getInstallURL() {
 	// Get the location of this class and compute the install location.
 	// this involves striping off last element (jar or directory) 
 	URL url = InternalBootLoader.class.getProtectionDomain().getCodeSource().getLocation();
-	String path = url.getFile();
+	String path = decode(url.getFile());
 	if (path.endsWith("/"))
 		path = path.substring(0, path.length() - 1);
 	int ix = path.lastIndexOf('/');
@@ -227,6 +227,57 @@ public static URL getInstallURL() {
 		throw new RuntimeException("Fatal Error: Unable to determine platform installation URL "+e);
 	}
 	return installURL;
+}
+/**
+ * Returns a string representation of the given URL String.  This converts
+ * escaped sequences (%..) in the URL into the appropriate characters.
+ * NOTE: due to class visibility there is a copy of this method
+ *       in Main (the launcher)
+ */
+public static String decode(String urlString) {
+	//try to use Java 1.4 method if available
+	try {
+		Class clazz = URLDecoder.class;
+		Method method = clazz.getDeclaredMethod("decode", new Class[] {String.class, String.class});//$NON-NLS-1$
+		//first encode '+' characters, because URLDecoder incorrectly converts 
+		//them to spaces on certain class library implementations.
+		if (urlString.indexOf('+') >= 0) {
+			int len = urlString.length();
+			StringBuffer buf = new StringBuffer(len);
+			for (int i = 0; i < len; i++) {
+				char c = urlString.charAt(i);
+				if (c == '+')
+					buf.append("%2B");//$NON-NLS-1$
+				else
+					buf.append(c);
+			}
+			urlString = buf.toString();
+		}
+		Object result = method.invoke(null, new Object[] {urlString, "UTF-8"});//$NON-NLS-1$
+		if (result != null)
+			return (String)result;
+	} catch (Exception e) {
+	}
+	//decode URL by hand
+	int len = urlString.length();
+	ByteArrayOutputStream os = new ByteArrayOutputStream(len);
+	for (int i = 0; i < len;) {
+		char c = urlString.charAt(i++);
+		if (c == '%') {
+			if (len >= i + 2) {
+				os.write(Integer.parseInt(urlString.substring(i, i + 2), 16));
+			}
+			i += 2;
+		} else {
+			os.write(c);
+		}
+	}
+	try {
+		return new String(os.toByteArray(), "UTF-8");//$NON-NLS-1$
+	} catch (UnsupportedEncodingException e) {
+		//use default encoding
+		return new String(os.toByteArray());
+	}
 }
 private static String[] getListOption(String option) {
 	String filter = options.getProperty(option);
@@ -266,7 +317,8 @@ public static PlatformConfiguration getPlatformConfiguration(URL url) throws IOE
 private static Object[] getPlatformClassLoaderPath() {
 
 	PlatformConfiguration config = getCurrentPlatformConfiguration();
-	String execBase = config.getPluginPath(RUNTIMENAME).toExternalForm();
+	PlatformConfiguration.BootDescriptor bd = config.getPluginBootDescriptor(RUNTIMENAME);
+	String execBase = bd.getPluginDirectoryURL().toExternalForm();
 	if (execBase == null)
 		execBase = getInstallURL() + RUNTIMEDIR;
 
@@ -284,8 +336,11 @@ private static Object[] getPlatformClassLoaderPath() {
 		}
 	}
 	ArrayList list = new ArrayList(5);
-	list.add("runtime.jar");
-	list.add(exportAll);
+	String[] libs = bd.getLibraries();
+	for (int i=0; i<libs.length; i++) {
+		list.add(libs[i]);
+		list.add(exportAll);
+	}
 
 	// add in the class path entries spec'd in the config.
 	for (Iterator i = list.iterator(); i.hasNext();) {

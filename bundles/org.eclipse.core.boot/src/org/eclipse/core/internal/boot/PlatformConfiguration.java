@@ -36,6 +36,8 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	private boolean transientConfig = false;
 	private File cfgLockFile;
 	private RandomAccessFile cfgLockFileRAF;
+	private BootDescriptor runtimeDescriptor; 
+	private BootDescriptor xmlDescriptor; 
 	
 	private static String cmdConfiguration = null;
 	private static String cmdFeature = null;
@@ -46,6 +48,11 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	private static boolean cmdDev = false;
 
 	static boolean DEBUG = false;
+	
+	private static final String BOOT_XML = "boot.xml";
+	private static final String BOOT_PLUGIN_ID = "org.eclipse.core.boot";
+	private static final String RUNTIME_PLUGIN_ID = "org.eclipse.core.runtime";
+	private static final String XML_PLUGIN_ID = "org.apache.xerces";
 
 	private static final String PLUGINS = "plugins";
 	private static final String FEATURES = "features";
@@ -517,6 +524,12 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		private static final String VER_SEPARATOR = ".";
 		private static final String ID_SEPARATOR = "_";
 		
+		public static final int LESS_THAN = -1;
+		public static final int EQUAL = 0;
+		public static final int EQUIVALENT = 1;
+		public static final int COMPATIBLE = 2;
+		public static final int GREATER_THAN = 3;
+		
 		public VersionedIdentifier(String s) {		
 			if (s==null || (s=s.trim()).equals("")) 
 				return;
@@ -530,11 +543,11 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			 this.identifier = s;		
 		}
 		
-		public boolean identifierEquals(String id) {
+		public boolean equalIdentifiers(VersionedIdentifier id) {
 			if (id == null)
 				return identifier == null;
 			else
-				return id.equals(identifier);
+				return id.identifier.equals(identifier);
 		}		
 		
 		public int compareVersion(VersionedIdentifier id) {
@@ -544,23 +557,23 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 				else return 1;
 			}
 
-			if (major > id.major) return 1;
-			if (major < id.major) return -1;
-			if (minor > id.minor) return 1;
-			if (minor < id.minor) return -1;	
-			if (service > id.service) return 1;
-			if (service < id.service) return -1;
+			if (major > id.major) return GREATER_THAN;
+			if (major < id.major) return LESS_THAN;
+			if (minor > id.minor) return COMPATIBLE;
+			if (minor < id.minor) return LESS_THAN;	
+			if (service > id.service) return EQUIVALENT;
+			if (service < id.service) return LESS_THAN;
 			return compareQualifiers(qualifier, id.qualifier);
 		}
 
 		private int compareQualifiers(String q1, String q2) {
 			int result = q1.compareTo(q2);
 			if (result<0)
-				return -1;
+				return LESS_THAN;
 			else if (result>0)
-				return 1;
+				return EQUIVALENT;
 			else
-				return 0;
+				return EQUAL;
 		}	
 		
 		private void parseVersion(String v) {				
@@ -626,15 +639,28 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	 * during the platform startup sequence before full xml plugin is available.
 	 */
 	public static class Parser {
-	
-		ArrayList elements = new ArrayList();
+		
+		private ArrayList elements = new ArrayList();
 	
 		/*
 		 * Construct parser for the specified file
 		 */
 		public Parser(File file) {
-			load(file);	
+			try {
+				load(new FileInputStream(file));
+			} catch (Exception e) {
+			}	
 		}
+	
+		/*
+		 * Construct parser for the specified URL
+		 */
+		public Parser(URL url) {
+			try {
+				load(url.openStream());
+			} catch (Exception e) {
+			}
+		}		
 	
 		/*
 		 * Return selected elements as an (attribute-name, attribute-value) map.
@@ -694,16 +720,16 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			return null;
 		}
 	
-		private void load(File file) {	
-			if (!file.exists())
-				return;		
+		private void load(InputStream is) {
+			if (is == null)
+				return;
 			
 			// read file	
 			StringBuffer xml = new StringBuffer(4096);
 			char[] iobuf = new char[4096];
-			FileReader r = null;
+			InputStreamReader r = null;
 			try {
-				r = new FileReader(file);
+				r = new InputStreamReader(is);
 				int len = r.read(iobuf, 0, iobuf.length);
 				while (len != -1) {
 					xml.append(iobuf, 0, len);
@@ -726,6 +752,36 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 				if (!token.equals(""))
 					elements.add(token);
 			}
+		}
+	}
+	
+	public static class BootDescriptor {
+		private String id;
+		private String version;
+		private String[] libs;
+		private URL dir;
+		
+		public BootDescriptor(String id, String version, String[] libs, URL dir) {
+			this.id = id;
+			this.version = version;
+			this.libs = libs;
+			this.dir = dir;
+		}
+		
+		public String getId() {
+			return id;
+		}
+		
+		public String getVersion() {
+			return version;
+		}
+		
+		public String[] getLibraries() {
+			return libs;
+		}
+		
+		public URL getPluginDirectoryURL() {
+			return dir;
 		}
 	}
 
@@ -1125,76 +1181,21 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		}
 	}
 	
-	URL getPluginPath(String pluginId) {
-		return getPluginPath(pluginId, null);
-	}	
-		
-	// This method is currently public because it is called by InternalPlatform.
-	// However, it is NOT intended as API
-	public URL getPluginPath(String pluginId, String versionId) {
-		// return the plugin path element for the specified plugin. This method
-		// is used during boot processing to obtain "kernel" plugins whose
-		// class loaders must be created prior to the plugin registry being 
-		// available (ie. loaders needed to create the plugin registry)
-		// must be created 
-				
-		ISiteEntry[] sites = getConfiguredSites();
-		if (sites == null || sites.length == 0)
-			return null;
-				
-		// for now look for the "latest" version of the requested plugin
-		// using naming convention of the installer and the policy set for
-		// the site
-		// FIXME: the current code in this method implements the R1.0 "best guess"
-		//        algorithm
-		VersionedIdentifier savedVid = new VersionedIdentifier(null);
-		String savedEntry = null;
-		URL savedURL = null;
-		for (int j=0; j<sites.length; j++) {							
-			String[] plugins = sites[j].getPlugins();
-			for (int i=0; plugins!=null && i<plugins.length; i++) {
-				// look for best match. 
-				// The entries are in the form <path>/<pluginDir>/plugin.xml
-				// look for -------------------------^
-				int ix = findEntrySeparator(plugins[i],2); // second from end
-				if (ix == -1)
-					continue; // bad entry ... skip
-				String pluginDir = plugins[i].substring(ix+1);
-				ix = pluginDir.indexOf("/");
-				if (ix != -1)
-					pluginDir = pluginDir.substring(0,ix);
-				if (pluginDir.equals(""))
-					continue; // bad entry ... skip
-												
-				VersionedIdentifier vid = new VersionedIdentifier(pluginDir);
-				if (vid.identifierEquals(pluginId)) {
-					if (vid.compareVersion(savedVid) >= 0) {
-						savedVid = vid;
-						savedEntry = plugins[i];
-						savedURL = ((SiteEntry)sites[j]).getResolvedURL();
-					}
-				}			
-			}				
-		}			
+	public BootDescriptor getPluginBootDescriptor(String id) {		
+		// return the plugin descriptor for the specified plugin. This method
+		// is used during boot processing to obtain information about "kernel" plugins
+		// whose class loaders must be created prior to the plugin registry being 
+		// available (ie. loaders needed to create the plugin registry).
 
-		if (savedEntry == null)
+		if (RUNTIME_PLUGIN_ID.equals(id))
+			return runtimeDescriptor;
+		else if (XML_PLUGIN_ID.equals(id))
+			return xmlDescriptor;
+		else
 			return null;
-				
-		// callers are expecting a directory URL
-		if (!savedEntry.endsWith("/")) {
-			int ix = savedEntry.lastIndexOf("/");
-			if (ix == -1)
-				return null; // bad entry
-			savedEntry = savedEntry.substring(0,ix+1); // include trailing separator
-		}
-			
-		try {
-			return new URL(savedURL,savedEntry);
-		} catch(MalformedURLException e) {
-			return null;
-		}
 	}
 	
+		
 	static PlatformConfiguration getCurrent() {
 		return currentPlatformConfiguration;
 	}
@@ -1785,30 +1786,269 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	}
 	
 	private void locateDefaultPlugins() {
-		// parse core.boot plugin.xml
-		// -> get its import for core.runtime
 		
-		// search plugin path for best match for core.runtime
-		// -> parse all found to get correct info
+		// determine the runtime for the currently executing boot loader
+		HashMap runtimeImport = getRuntimeImport();
 		
-		// parse core.runtime plugin.xml
-		//-> get its import for xerces
+		// locate runtime plugin matching the import from boot
+		URL runtimePluginPath = getPluginPath(runtimeImport);
+		if (runtimePluginPath == null) 
+			throw new RuntimeException("Fatal Error: Unable to locate matching org.eclipse.core.runtime plugin");
 		
-		// search plugin path for best match for xerces
-		// -> parse all found to get correct info
+		// get boot descriptor for runtime plugin
+		runtimeDescriptor = createPluginBootDescriptor(runtimePluginPath);
 		
-		// parse xerces plugin.xml
-		// -> get its <library> entries ... all of them	
+		// determine the xml plugin for the selected runtime
+		HashMap xmlImport = getImport(runtimePluginPath, XML_PLUGIN_ID);
+		
+		// locate xml plugin matching the import from runtime plugin
+		URL xmlPluginPath = getPluginPath(xmlImport);
+		if (xmlPluginPath == null) 
+			throw new RuntimeException("Fatal Error: Unable to locate matching org.apache.xerces plugin");
+				
+		// get boot descriptor for xml plugin
+		xmlDescriptor = createPluginBootDescriptor(xmlPluginPath);
 	}
 	
-	private File locateBootPluginXML(String path) {
-		// starting path is the boot load location (jar or directory)
-		// -> trip off .jar
+	private HashMap getRuntimeImport() {		
+		// determine the load directory location of the boot loader
+		URL url = InternalBootLoader.class.getProtectionDomain().getCodeSource().getLocation();
+		String path = InternalBootLoader.decode(url.getFile());
+		File base = new File(path);
+		if (!base.isDirectory())
+			base = base.getParentFile(); // was loaded from jar
+			
+		// find the plugin.xml (need to search because in dev mode
+		// we can have some extra directory entries)
+		File xml = null;
+		while(base != null) {
+			xml = new File(base, BOOT_XML);
+			if (xml.exists())
+				break;
+			base = base.getParentFile();
+		}		
+		if (xml == null)		
+			throw new RuntimeException("Fatal Error: Unable to locate boot.xml file for executing org.eclipse.core.boot");
+			
+		try {
+			return getImport(xml.toURL(), RUNTIME_PLUGIN_ID);
+		} catch(MalformedURLException e) {
+			return null;
+		}
+	}
+				
+				
+	private HashMap getImport(URL entry, String id) {
+		if (id == null)
+			return null;
+		final String fId = id;
+			
+		// parse out the import element attributes		
+		Selector importSel = new Selector() {
+			// parse out import attributes
+			public boolean select(String element){
+				if (element.startsWith("import"))
+					return true;
+				else
+					return false;
+			}
+			public boolean select(String element, HashMap attributes) {
+				if (attributes == null)
+					return false;
+				String plugin = (String) attributes.get("plugin");
+				return fId.equals(plugin);
+			}
+		};			
+		Parser p = new Parser(entry);
+		return p.getElement(importSel);
+	}
+	
+	private BootDescriptor createPluginBootDescriptor(URL entry) {		
+		if (entry == null)
+			return null;
+			
+		// selector for plugin element	
+		Selector pluginSel = new Selector() {
+			public boolean select(String element){
+				if (element.startsWith("plugin"))
+					return true;
+				else
+					return false;
+			}
+			public boolean select(String element, HashMap attributes) {
+				return true; 
+			}
+		};			
+			
+		// selector for library elements
+		final ArrayList libs = new ArrayList();		
+		Selector librarySel = new Selector() {
+			public boolean select(String element){
+				if (element.startsWith("library"))
+					return true;
+				else
+					return false;
+			}
+			public boolean select(String element, HashMap attributes) {
+				if (attributes == null)
+					return false;
+				String lib = (String) attributes.get("name");
+				if (lib != null)
+					libs.add(lib);
+				return false; // accumulate all library elements
+			}
+		};
 		
-		// recursively try to get <dir>/plugin.xml, until we have no parent
-		// -> terminal error if not found
+		// parse out descriptor information
+		Parser p = new Parser(entry);
+		String id = null;
+		String version = null;		
+		HashMap attributes = p.getElement(pluginSel);
+		if (attributes != null) {
+			id = (String)attributes.get("id");
+			version = (String)attributes.get("version");
+		}
+		if (id == null)
+			id = "";
+		if (version == null)
+			version = "0.0.0";		
+		
+		p.getElement(librarySel);
+		String[] libraries = (String[])libs.toArray(new String[0]);
+				
+		String dir = entry.getFile();
+		int ix = dir.lastIndexOf("/");
+		dir = dir.substring(0,ix+1);
+		URL dirURL = null;
+		try {
+			dirURL = new URL(entry.getProtocol(), entry.getHost(), entry.getPort(), dir);
+		} catch(MalformedURLException e) {
+		}
+		
+		// return boot descriptor for the plugin
+		return new BootDescriptor(id, version, libraries, dirURL);
+	}	
+	
+	private URL getPluginPath(HashMap importElement) {
+		// return the plugin path element for the specified import element
+		
+		if (importElement == null)
+			return null;
+		
+		// determine which plugin we are looking for
+		VersionedIdentifier id;
+		String pid = (String) importElement.get("plugin");
+		String version = (String) importElement.get("version");
+		String match = (String) importElement.get("match");
+		if (pid == null)
+			return null; // bad <import> element
+		if (version == null)
+			id = new VersionedIdentifier(pid);
+		else {
+			id = new VersionedIdentifier(pid+"_"+version);
+			if (match == null)
+				match = "compatible";
+		}
+		
+		// search plugins on all configured sites
+		ISiteEntry[] sites = getConfiguredSites();
+		if (sites == null || sites.length == 0)
+			return null;
+			
+		VersionedIdentifier savedVid = id; // initialize with baseline we are looking for
+		String savedEntry = null;
+		URL savedURL = null;
+		for (int j=0; j<sites.length; j++) {							
+			String[] plugins = sites[j].getPlugins();
+			for (int i=0; plugins!=null && i<plugins.length; i++) {
+				// look for best match. 
+				// The entries are in the form <path>/<pluginDir>/plugin.xml
+				// look for -------------------------^
+				int ix = findEntrySeparator(plugins[i],2); // second from end
+				if (ix == -1)
+					continue; // bad entry ... skip
+				String pluginDir = plugins[i].substring(ix+1);
+				ix = pluginDir.indexOf("/");
+				if (ix != -1)
+					pluginDir = pluginDir.substring(0,ix);
+				if (pluginDir.equals(""))
+					continue; // bad entry ... skip
+												
+				// compare the candidate plugin using the matching rule												
+				VersionedIdentifier vid = new VersionedIdentifier(pluginDir);				
+				if (vid.equalIdentifiers(id)) {
+						
+					// check if we have suffixed directory. If not (eg. self-hosting)
+					// we need to actually parse the plugin.xml to get its version
+					if (pluginDir.indexOf("_") == -1) {
+						URL xmlURL = null;
+						try {
+							xmlURL = new URL(((SiteEntry)sites[j]).getResolvedURL(), plugins[i]);
+						} catch (MalformedURLException e) {
+							continue; // bad URL ... skip
+						}
+					
+						// parse out the plugin element attributes
+						final String fpid = pid;		
+						Selector versionSel = new Selector() {
+							// parse out plugin attributes
+							public boolean select(String element){
+								if (element.startsWith("plugin"))
+								return true;
+							else
+								return false;
+							}
+							public boolean select(String element, HashMap attributes) {
+								if (attributes == null)
+									return false;
+								String plugin = (String) attributes.get("id");
+								return fpid.equals(plugin);
+							}
+						};			
+						Parser p = new Parser(xmlURL);
+						HashMap attributes = p.getElement(versionSel);
+						if (attributes == null)
+							continue; // bad xml ... skip
+						String pluginVersion;
+						if ((pluginVersion = (String)attributes.get("version")) == null)
+							continue; // bad xml ... skip
+						pluginDir += "_" + pluginVersion;
+						vid = new VersionedIdentifier(pluginDir);
+					}					
+					
+					// do the comparison
+					int result;
+					if ((result = vid.compareVersion(savedVid)) >= 0) {
+						if ("greaterOrEqual".equals(match)) {
+							 if (result > VersionedIdentifier.GREATER_THAN) 
+								continue;
+						} else if ("compatible".equals(match)) {
+							 if (result > VersionedIdentifier.COMPATIBLE) 
+								continue;
+						} else if ("equivalent".equals(match)) {
+							 if (result > VersionedIdentifier.EQUIVALENT) 
+								continue;
+						} else if ("perfect".equals(match)) {
+							 if (result > VersionedIdentifier.EQUAL) 
+							continue;
+						} else if (result > VersionedIdentifier.GREATER_THAN)
+							continue; // use the latest
+						savedVid = vid;
+						savedEntry = plugins[i];
+						savedURL = ((SiteEntry)sites[j]).getResolvedURL();
+					}
+				}			
+			}				
+		}			
 
-		return null;
+		if (savedEntry == null)
+			return null;
+							
+		try {
+			return new URL(savedURL,savedEntry);
+		} catch(MalformedURLException e) {
+			return null;
+		}
 	}
 	
 	private void write(PrintWriter w) {
