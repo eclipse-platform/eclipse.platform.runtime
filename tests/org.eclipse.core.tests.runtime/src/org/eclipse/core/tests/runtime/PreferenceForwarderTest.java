@@ -191,10 +191,6 @@ public class PreferenceForwarderTest extends RuntimeTest {
 
 	}
 
-	private String getUniqueString() {
-		return new UniversalUniqueIdentifier().toString();
-	}
-
 	public void testInteger() {
 
 		Preferences ps = new PreferenceForwarder(getUniqueString());

@@ -98,10 +98,6 @@ public class EclipsePreferencesTest extends RuntimeTest {
 		//		return suite;
 	}
 
-	private String getUniqueString() {
-		return new UniversalUniqueIdentifier().toString();
-	}
-
 	private IEclipsePreferences getScopeRoot() {
 		return (IEclipsePreferences) Platform.getPreferencesService().getRootNode().node(TestScope.SCOPE);
 	}
@@ -665,27 +661,6 @@ public class EclipsePreferencesTest extends RuntimeTest {
 		assertEquals(message + ".3", one.length, two.length);
 		for (int i = 0; i < one.length; i++)
 			assertEquals(message + ".4." + i, one[i], two[i]);
-	}
-
-	private void assertEquals(String message, Object[] one, Object[] two) {
-		if (one == null && two == null)
-			return;
-		if (one == two)
-			return;
-		if (one == null || two == null)
-			assertTrue(message + ".1", false);
-		if (one.length != two.length)
-			assertTrue(message + ".2", false);
-		boolean[] found = new boolean[one.length];
-		for (int i = 0; i < one.length; i++) {
-			for (int j = 0; j < one.length; j++) {
-				if (!found[j] && one[i].equals(two[j]))
-					found[j] = true;
-			}
-		}
-		for (int i = 0; i < found.length; i++)
-			if (!found[i])
-				assertTrue(message + ".3." + i, false);
 	}
 
 	public void testChildrenNames() {

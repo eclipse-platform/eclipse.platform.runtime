@@ -381,10 +381,6 @@ public class PreferencesServiceTest extends RuntimeTest {
 		assertEquals("8.7", defaultValue, actual);
 	}
 
-	private String getRandomString() {
-		return Long.toString(random.nextLong());
-	}
-
 	public void testSearchingStringBasics() {
 		IPreferencesService service = Platform.getPreferencesService();
 		String qualifier = getRandomString();
@@ -729,10 +725,6 @@ public class PreferencesServiceTest extends RuntimeTest {
 		verifier.addExpected(child1.absolutePath(), k1);
 		verifier.addExpected(child2.absolutePath(), k1);
 		verifier.addExpected(child2.absolutePath(), k2);
-	}
-
-	private IPath getRandomLocation() {
-		return new Path(System.getProperty("java.io.tmpdir")).append(Long.toString(System.currentTimeMillis()));
 	}
 
 	public void testValidateVersions() {
