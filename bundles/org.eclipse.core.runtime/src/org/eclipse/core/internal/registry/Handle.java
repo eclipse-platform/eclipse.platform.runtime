@@ -42,4 +42,8 @@ public abstract class Handle {
 		}
 		return false;
 	}
+
+	public int hashCode() {
+		return objectId;
+	}
 }
