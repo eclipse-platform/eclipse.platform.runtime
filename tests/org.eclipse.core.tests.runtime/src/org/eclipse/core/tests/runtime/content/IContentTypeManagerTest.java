@@ -11,17 +11,24 @@
 package org.eclipse.core.tests.runtime.content;
 
 import java.io.*;
-import junit.framework.*;
+import java.util.*;
+import junit.framework.Test;
+import junit.framework.TestSuite;
 import org.eclipse.core.internal.content.*;
 import org.eclipse.core.runtime.*;
 import org.eclipse.core.runtime.content.*;
+import org.eclipse.core.runtime.content.IContentTypeManager.ContentTypeChangeEvent;
+import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.core.tests.harness.BundleTestingHelper;
+import org.eclipse.core.tests.harness.EclipseWorkspaceTest;
 import org.eclipse.core.tests.runtime.RuntimeTestsPlugin;
 import org.eclipse.core.tests.runtime.TestRegistryChangeListener;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleException;
+import org.osgi.service.prefs.BackingStoreException;
+import org.osgi.service.prefs.Preferences;
 
-public class IContentTypeManagerTest extends TestCase {
+public class IContentTypeManagerTest extends EclipseWorkspaceTest {
 	private final static String MINIMAL_XML = "<?xml version=\"1.0\"?><org.eclipse.core.runtime.tests.root/>";
 	private final static String SAMPLE_BIN1_OFFSET = "12345";
 	private final static byte[] SAMPLE_BIN1_SIGNATURE = {0x10, (byte) 0xAB, (byte) 0xCD, (byte) 0xFF};
@@ -34,14 +41,14 @@ public class IContentTypeManagerTest extends TestCase {
 	private final static String XML_ROOT_ELEMENT_EXTERNAL_ENTITY = "<?xml version=\"1.0\"?><!DOCTYPE project   [<!ENTITY someentity SYSTEM \"someentity.xml\">]><org.eclipse.core.runtime.tests.root-element/>";
 	private final static String XML_ROOT_ELEMENT_EXTERNAL_ENTITY2 = "<?xml version=\"1.0\"?><!DOCTYPE org.eclipse.core.runtime.tests.root-element PUBLIC \"org.eclipse.core.runtime.tests.root-elementId\" \"org.eclipse.core.runtime.tests.root-element.dtd\" ><org.eclipse.core.runtime.tests.root-element/>";
 	private final static String XML_ROOT_ELEMENT_ISO_8859_1 = "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><org.eclipse.core.runtime.tests.root-element/>";
-	private final static String XML_ROOT_ELEMENT_NO_DECL = "<org.eclipse.core.runtime.tests.root-element/>";	
+	private final static String XML_ROOT_ELEMENT_NO_DECL = "<org.eclipse.core.runtime.tests.root-element/>";
 	private final static String XML_UTF_16 = "<?xml version=\"1.0\" encoding=\"UTF-16\"?><org.eclipse.core.runtime.tests.root/>";
 	private final static String XML_UTF_16BE = "<?xml version=\"1.0\" encoding=\"UTF-16BE\"?><org.eclipse.core.runtime.tests.root/>";
 	private final static String XML_UTF_16LE = "<?xml version=\"1.0\" encoding=\"UTF-16LE\"?><org.eclipse.core.runtime.tests.root/>";
 	private final static String XML_UTF_8 = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><org.eclipse.core.runtime.tests.root/>";
 
 	public static Test suite() {
-		//return new IContentTypeManagerTest("testRootElementAndDTDDescriber");
+		//		return new IContentTypeManagerTest("testRootElementAndDTDDescriber");
 		return new TestSuite(IContentTypeManagerTest.class);
 	}
 
@@ -279,7 +286,7 @@ public class IContentTypeManagerTest extends TestCase {
 	}
 
 	/**
-	 * @see IContentTypeManager#getContentTypeFor
+	 * @see IContentTypeManager#findContentTypeFor
 	 */
 	public void testContentDetection() throws IOException {
 		LocalContentTypeManager contentTypeManager = (LocalContentTypeManager) LocalContentTypeManager.getLocalContentTypeManager();
@@ -550,8 +557,25 @@ public class IContentTypeManagerTest extends TestCase {
 		contentTypes = contentTypeManager.findContentTypesFor(getInputStream(XML_DTD_EXTERNAL_ENTITY, "UTF-8"), "fake.xml");
 		assertTrue("4.0", contentTypes.length > 0);
 		assertEquals("4.1", dtdElement, contentTypes[0]);
+
+		// bug 67975
+		IContentDescription description = contentTypeManager.getDescriptionFor(getInputStream(new byte[][] {IContentDescription.BOM_UTF_16BE, XML_ROOT_ELEMENT_NO_DECL.getBytes("UTF-16BE")}), "fake.xml", IContentDescription.ALL);
+		assertTrue("5.0", description != null);
+		assertEquals("5.1", rootElement, description.getContentType());
+		assertEquals("5.2", IContentDescription.BOM_UTF_16BE, description.getProperty(IContentDescription.BYTE_ORDER_MARK));
+
+		description = contentTypeManager.getDescriptionFor(getInputStream(new byte[][] {IContentDescription.BOM_UTF_16LE, XML_ROOT_ELEMENT_NO_DECL.getBytes("UTF-16LE")}), "fake.xml", IContentDescription.ALL);
+		assertTrue("6.0", description != null);
+		assertEquals("6.1", rootElement, description.getContentType());
+		assertEquals("6.2", IContentDescription.BOM_UTF_16LE, description.getProperty(IContentDescription.BYTE_ORDER_MARK));
+
+		// due to bug 67048, the test below fails with Crimson parser (does not handle UTF-8 BOMs)
+		//		description = contentTypeManager.getDescriptionFor(getInputStream(new byte[][] {IContentDescription.BOM_UTF_8,XML_ROOT_ELEMENT_NO_DECL.getBytes("UTF-8")}), "fake.xml", IContentDescription.ALL);
+		//		assertTrue("7.0", description != null);
+		//		assertEquals("7.1", rootElement, description.getContentType());
+		//		assertEquals("7.2", IContentDescription.BOM_UTF_8, description.getProperty(IContentDescription.BYTE_ORDER_MARK));		
 	}
-	
+
 	/**
 	 * Bug 66976
 	 */
@@ -559,13 +583,159 @@ public class IContentTypeManagerTest extends TestCase {
 		int bufferLimit = ContentTypeManager.MARK_LIMIT * 4;
 		// create a long XML comment as prefix 
 		StringBuffer comment = new StringBuffer("<!--");
-		for(int i = 0;i < bufferLimit; i++)
+		for (int i = 0; i < bufferLimit; i++)
 			comment.append('*');
 		comment.append("-->");
 		IContentTypeManager manager = Platform.getContentTypeManager();
-		IContentType rootElement = manager.getContentType(RuntimeTestsPlugin.PI_RUNTIME_TESTS + ".root-element");		
+		IContentType rootElement = manager.getContentType(RuntimeTestsPlugin.PI_RUNTIME_TESTS + ".root-element");
 		IContentType selected = manager.findContentTypeFor(getInputStream(comment + XML_ROOT_ELEMENT_NO_DECL, "US-ASCII"), "fake.xml");
 		assertNotNull("1.0", selected);
-		assertEquals("1.1", rootElement,  selected);
+		assertEquals("1.1", rootElement, selected);
+	}
+
+	/**
+	 * Bug 68894  
+	 */
+	public void testPreferences() throws CoreException, BackingStoreException {
+		ContentTypeManager manager = ContentTypeManager.getInstance();
+		IContentType text = manager.getContentType(IContentTypeManager.CT_TEXT);
+		Preferences textPrefs = new InstanceScope().getNode(ContentTypeManager.CONTENT_TYPE_PREF_NODE).node(text.getId());
+		assertNotNull("0.1", text);
+
+		// ensure the "default charset" preference is being properly used
+		assertNull("1.0", text.getDefaultCharset());
+		assertNull("1.1", textPrefs.get(ContentType.PREF_DEFAULT_CHARSET, null));
+		text.setDefaultCharset("UTF-8");
+		assertEquals("1.2", "UTF-8", textPrefs.get(ContentType.PREF_DEFAULT_CHARSET, null));
+		text.setDefaultCharset(null);
+		assertNull("1.3", textPrefs.get(ContentType.PREF_DEFAULT_CHARSET, null));
+
+		// ensure the file spec preferences are being properly used
+		// some sanity checking
+		assertFalse("2.01", text.isAssociatedWith("xyz.foo"));
+		assertFalse("2.01", text.isAssociatedWith("xyz.bar"));
+		assertFalse("2.03", text.isAssociatedWith("foo.ext"));
+		assertFalse("2.04", text.isAssociatedWith("bar.ext"));
+		// play with file name associations first...
+		assertNull("2.0a", textPrefs.get(ContentType.PREF_FILE_NAMES, null));
+		assertNull("2.0b", textPrefs.get(ContentType.PREF_FILE_EXTENSIONS, null));
+		text.addFileSpec("foo.ext", IContentType.FILE_NAME_SPEC);
+		assertTrue("2.1", text.isAssociatedWith("foo.ext"));
+		assertEquals("2.2", "foo.ext", textPrefs.get(ContentType.PREF_FILE_NAMES, null));
+		text.addFileSpec("bar.ext", IContentType.FILE_NAME_SPEC);
+		assertTrue("2.3", text.isAssociatedWith("bar.ext"));
+		assertEquals("2.4", "foo.ext,bar.ext", textPrefs.get(ContentType.PREF_FILE_NAMES, null));
+		// ... and then with file extensions
+		text.addFileSpec("foo", IContentType.FILE_EXTENSION_SPEC);
+		assertTrue("2.5", text.isAssociatedWith("xyz.foo"));
+		assertEquals("2.6", "foo", textPrefs.get(ContentType.PREF_FILE_EXTENSIONS, null));
+		text.addFileSpec("bar", IContentType.FILE_EXTENSION_SPEC);
+		assertTrue("2.7", text.isAssociatedWith("xyz.bar"));
+		assertEquals("2.4", "foo,bar", textPrefs.get(ContentType.PREF_FILE_EXTENSIONS, null));
+		// remove all associations made
+		text.removeFileSpec("foo.ext", IContentType.FILE_NAME_SPEC);
+		text.removeFileSpec("bar.ext", IContentType.FILE_NAME_SPEC);
+		text.removeFileSpec("foo", IContentType.FILE_EXTENSION_SPEC);
+		text.removeFileSpec("bar", IContentType.FILE_EXTENSION_SPEC);
+		// ensure all is as before
+		assertFalse("3.1", text.isAssociatedWith("xyz.foo"));
+		assertFalse("3.2", text.isAssociatedWith("xyz.bar"));
+		assertFalse("3.3", text.isAssociatedWith("foo.ext"));
+		assertFalse("3.4", text.isAssociatedWith("bar.ext"));
+
+		// ensure the serialization format is correct
+		try {
+			text.addFileSpec("foo.bar", IContentType.FILE_NAME_SPEC);
+			textPrefs.sync();
+			assertEquals("4.0", "foo.bar", textPrefs.get(ContentType.PREF_FILE_NAMES, null));
+		} finally {
+			// clean-up
+			text.removeFileSpec("foo.bar", IContentType.FILE_NAME_SPEC);
+		}
+	}
+
+	class ContentTypeChangeTracer implements IContentTypeManager.IContentTypeChangeListener {
+		private Set changed = new HashSet();
+
+		public void contentTypeChanged(ContentTypeChangeEvent event) {
+			changed.add(event.getContentType());
+		}
+
+		public Collection getChanges() {
+			return changed;
+		}
+
+		public void reset() {
+			changed.clear();
+		}
+
+		public boolean isOnlyChange(IContentType myType) {
+			return changed.size() == 1 && changed.contains(myType);
+		}
+	}
+
+	public void testEvents() {
+		IContentTypeManager contentTypeManager = Platform.getContentTypeManager();
+		IContentType myType = contentTypeManager.getContentType(RuntimeTestsPlugin.PI_RUNTIME_TESTS + ".myContent");
+		assertNotNull("0.9", myType);
+
+		ContentTypeChangeTracer tracer;
+
+		tracer = new ContentTypeChangeTracer();
+		contentTypeManager.addContentTypeChangeListener(tracer);
+
+		// add a file spec and check event
+		try {
+			myType.addFileSpec("another.file.name", IContentType.FILE_NAME_SPEC);
+		} catch (CoreException e) {
+			fail("1.0", e);
+		}
+		assertTrue("1.1", tracer.isOnlyChange(myType));
+
+		// remove a non-existing file spec - should not cause an event to be fired
+		tracer.reset();
+		try {
+			myType.removeFileSpec("another.file.name", IContentType.FILE_EXTENSION_SPEC);
+		} catch (CoreException e) {
+			fail("2.0", e);
+		}
+		assertTrue("2.1", !tracer.isOnlyChange(myType));
+
+		// add a file spec again and check no event is generated
+		tracer.reset();
+		try {
+			myType.addFileSpec("another.file.name", IContentType.FILE_NAME_SPEC);
+		} catch (CoreException e) {
+			fail("3.0", e);
+		}
+		assertTrue("3.1", !tracer.isOnlyChange(myType));
+
+		// remove a file spec and check event
+		tracer.reset();
+		try {
+			myType.removeFileSpec("another.file.name", IContentType.FILE_NAME_SPEC);
+		} catch (CoreException e) {
+			fail("4.0", e);
+		}
+		assertTrue("4.1", tracer.isOnlyChange(myType));
+
+		// change the default charset and check event
+		tracer.reset();
+		try {
+			myType.setDefaultCharset("FOO");
+		} catch (CoreException e) {
+			fail("5.0", e);
+		}
+		assertTrue("5.1", tracer.isOnlyChange(myType));
+
+		// set the default charset to the same - no event should be generated
+		tracer.reset();
+		try {
+			myType.setDefaultCharset("FOO");
+		} catch (CoreException e) {
+			fail("6.0", e);
+		}
+		assertTrue("6.1", !tracer.isOnlyChange(myType));
+
 	}
 }
