@@ -462,7 +462,10 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 				}
 			}
 		}
-		initializeCurrent(configURL);		
+		initializeCurrent(configURL);
+		
+		// pick up any first-time default settings relative to selected config location
+		loadInitializationAttributes(configLocation);		
 
 		// FIXME: support for "safe mode"
 		
@@ -677,7 +680,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	static void startup(URL url, String configArg) throws IOException {			
 		// for 1.0 compatibility
 		LaunchInfo.startup(url);
-		if (!r2_0)
+		if (!r2_0) 
 			return;
 		
 		// create current configuration
@@ -948,38 +951,12 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		if (!VERSION.equals(v)) {			
 			throw new IOException(Policy.bind("cfig.badVersion",v));
 		}
-		
-						
-		// load any initialization attributes. These become the initial default settings
-		// for critical attributes (eg. primary feature) supplied by the packaging team
-		Properties initProps = new Properties();
-		is = null;
-		try {
-			URL initURL = new URL(url,CONFIG_FILE_INIT);
-			is = initURL.openStream();
-			initProps.load(is);
-		} catch(IOException e) { // ignore errors
-		} finally {
-			if (is!=null) {
-				try {
-					is.close();
-				} catch(IOException e) {
-				}
-			}
-		}
 				
-		// load "bootstrap" properties
-		primaryFeature = loadAttribute(props, CFG_PRIMARY_FEATURE, loadAttribute(initProps, INIT_PRIMARY_FEATURE,DFLT_PRIMARY_FEATURE));
-		primaryFeatureVersion = loadAttribute(props, CFG_PRIMARY_FEATURE_VERSION, loadAttribute(initProps, INIT_PRIMARY_FEATURE_VERSION,null));
-		primaryFeatureApplication = loadAttribute(props, CFG_PRIMARY_FEATURE_APP, loadAttribute(initProps, INIT_PRIMARY_FEATURE_APP,DFLT_PRIMARY_FEATURE_APP));
-		// FIXME: temporary code for 1.0/ 2.0 compatibility
-		int ix;
-		if (primaryFeature!=null && (ix=primaryFeature.indexOf("_"))!=-1) 
-			primaryFeature = primaryFeature.substring(0,ix);
-		if (primaryFeatureVersion!=null && (ix=primaryFeatureVersion.indexOf("_"))!=-1)
-			primaryFeatureVersion = primaryFeatureVersion.substring(ix+1);
-			
 		// load simple properties
+		primaryFeature = loadAttribute(props, CFG_PRIMARY_FEATURE, null);
+		primaryFeatureVersion = loadAttribute(props, CFG_PRIMARY_FEATURE_VERSION, null);
+		primaryFeatureApplication = loadAttribute(props, CFG_PRIMARY_FEATURE_APP, null);
+		
 		String stamp = loadAttribute(props, CFG_STAMP, null);
 		if (stamp != null) {
 			try {
@@ -1127,6 +1104,51 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			return dflt;
 		else
 			return prop.trim();
+	}
+	
+	private void loadInitializationAttributes(URL url) {
+		
+		if (url == null)
+			return;
+								
+		// load any initialization attributes. These become the initial default settings
+		// for critical attributes (eg. primary feature) supplied by the packaging team.
+		// Once these are reflected in the configuration they cannot be changed via the
+		// initialization mechanism
+		Properties initProps = new Properties();
+		InputStream is = null;
+		try {
+			URL initURL = new URL(url,CONFIG_FILE_INIT);
+			is = initURL.openStream();
+			initProps.load(is);
+		} catch(IOException e) {
+			return; // could not load "first-time" settings
+		} finally {
+			if (is!=null) {
+				try {
+					is.close();
+				} catch(IOException e) {
+				}
+			}
+		}
+				
+		// use "first-time" settings if not already set
+		int ix;
+		if (primaryFeature == null) {
+			primaryFeature = loadAttribute(initProps, INIT_PRIMARY_FEATURE, DFLT_PRIMARY_FEATURE);
+			// FIXME: temporary code for 1.0/ 2.0 compatibility
+			if (primaryFeature!=null && (ix=primaryFeature.indexOf("_"))!=-1) 
+				primaryFeature = primaryFeature.substring(0,ix);
+		}
+		if (primaryFeatureVersion == null) {			
+			primaryFeatureVersion = loadAttribute(initProps, INIT_PRIMARY_FEATURE_VERSION,null);
+			// FIXME: temporary code for 1.0/ 2.0 compatibility
+			if (primaryFeatureVersion!=null && (ix=primaryFeatureVersion.indexOf("_"))!=-1)
+				primaryFeatureVersion = primaryFeatureVersion.substring(ix+1);
+		}
+		if (primaryFeatureApplication == null) {
+			primaryFeatureApplication = loadAttribute(initProps, INIT_PRIMARY_FEATURE_APP, DFLT_PRIMARY_FEATURE_APP);
+		}
 	}
 	
 	private boolean isReadWriteLocation(URL url) {
