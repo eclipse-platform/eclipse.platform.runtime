@@ -217,7 +217,7 @@ public class ExtensionsParser extends DefaultHandler {
 					Extension currentExtension = (Extension) objectStack.pop();
 					Namespace parent = (Namespace) objectStack.peek();
 					//TODO Need to check if this is the correct value for fragments
-					currentExtension.setNamespace(parent.getContributingBundle().getSymbolicName());
+					currentExtension.setNamespace(parent.getHost().getSymbolicName());
 					scratchVectors[EXTENSION_INDEX].add(currentExtension);
 				}
 				break;
@@ -275,7 +275,7 @@ public class ExtensionsParser extends DefaultHandler {
 
 		// create a new Configuration Element and push it onto the object stack
 		ConfigurationElement currentConfigurationElement = new ConfigurationElement();
-		currentConfigurationElement.setContributingBundle(namespace.getContributingBundle());
+		currentConfigurationElement.setContributingBundle(namespace.getHost());
 		objectStack.push(currentConfigurationElement);
 		currentConfigurationElement.setName(elementName);
 
@@ -483,9 +483,8 @@ public class ExtensionsParser extends DefaultHandler {
 
 		objectManager.addExtensionPoint(currentExtPoint, true);
 		Namespace root = (Namespace) objectStack.peek();
-		//TODO Need to verify for fragments
-		currentExtPoint.setNamespace(root.getContributingBundle().getSymbolicName());
-		currentExtPoint.setBundleId(root.getContributingBundle().getBundleId());
+		currentExtPoint.setNamespace(root.getHost().getSymbolicName());
+		currentExtPoint.setBundleId(root.getHost().getBundleId());
 
 		// Now populate the the vector just below us on the objectStack with this extension point
 		scratchVectors[EXTENSION_POINT_INDEX].add(currentExtPoint);
