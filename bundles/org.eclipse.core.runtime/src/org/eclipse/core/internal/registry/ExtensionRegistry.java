@@ -281,11 +281,11 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	}
 
 	private void basicAdd(Namespace element, boolean link) {
-		registryObjects.addNamespace(element);
 		// ignore anonymous namespaces
 		if (element.getUniqueIdentifier() == null)
 			return;
 
+		registryObjects.addNamespace(element);
 		if (!link)
 			return;
 
@@ -397,15 +397,14 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			return null;
 		String namespace = extensionId.substring(0, lastdot);
 
-		Bundle correspondingBundle = Platform.getBundle(namespace);
-		if (correspondingBundle == null)
-			return null;
-
-		//TODO Need to look in fragments
-		int[] extensions = registryObjects.getExtensionsFrom(correspondingBundle.getBundleId());
-		for (int i = 0; i < extensions.length; i++) {
-			if (extensionId.equals(((Extension) registryObjects.getObject(extensions[i], RegistryObjectManager.EXTENSION)).getUniqueIdentifier()))
-				return (IExtension) registryObjects.getHandle(extensions[i], RegistryObjectManager.EXTENSION);
+		Bundle[] allBundles = findAllBundles(namespace);
+		for (int i = 0; i < allBundles.length; i++) {
+			int[] extensions = registryObjects.getExtensionsFrom(allBundles[i].getBundleId());
+			for (int j = 0; j < extensions.length; j++) {
+				if (extensionId.equals(((Extension) registryObjects.getObject(extensions[j], RegistryObjectManager.EXTENSION)).getUniqueIdentifier()))
+					return (IExtension) registryObjects.getHandle(extensions[j], RegistryObjectManager.EXTENSION);
+			}
+			
 		}
 		return null;
 	}
@@ -475,13 +474,31 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	public IExtensionPoint[] getExtensionPoints(String namespace) {
 		access.enterRead();
 		try {
-			//TODO This needs to collect extension points for fragments 
-			return (IExtensionPoint[]) registryObjects.getHandles(registryObjects.getExtensionPointsFrom(Platform.getBundle(namespace).getBundleId()), RegistryObjectManager.EXTENSION_POINT);
+			Bundle[] correspondingBundles = findAllBundles(namespace);
+			IExtensionPoint[] result = ExtensionPointHandle.EMPTY_ARRAY;
+			for (int i = 0; i < correspondingBundles.length; i++) {
+				result = (IExtensionPoint[]) addArrays(result, (IExtensionPoint[]) registryObjects.getHandles(registryObjects.getExtensionPointsFrom(correspondingBundles[i].getBundleId()), RegistryObjectManager.EXTENSION_POINT));
+			}
+			return result;
 		} finally {
 			access.exitRead();
 		}
 	}
 
+	//Return all the bundles that contributes to the given namespace
+	private Bundle[] findAllBundles(String namespace) {
+		Bundle correspondingHost = Platform.getBundle(namespace);
+		if (correspondingHost == null)
+			return new Bundle[0];
+		Bundle[] fragments = Platform.getFragments(correspondingHost);
+		if(fragments==null)
+			return new Bundle[] { correspondingHost };
+		Bundle[] result = new Bundle[fragments.length + 1];
+		System.arraycopy(fragments, 0, result, 0, fragments.length);
+		result[fragments.length] = correspondingHost;
+		return result;
+	}
+	
 	/*
 	 *  (non-Javadoc)
 	 * @see org.eclipse.core.runtime.IExtensionRegistry#getExtensions(java.lang.String)
@@ -489,11 +506,12 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	public IExtension[] getExtensions(String namespace) {
 		access.enterRead();
 		try {
-			Bundle correspondingBundle = Platform.getBundle(namespace);
-			if (correspondingBundle == null)
-				return ExtensionHandle.EMPTY_ARRAY;
-			//TODO Need to check for fragments
-			return (IExtension[]) registryObjects.getHandles(registryObjects.getExtensionsFrom(Platform.getBundle(namespace).getBundleId()), RegistryObjectManager.EXTENSION);
+			Bundle[] correspondingBundles = findAllBundles(namespace);
+			IExtension[] result = ExtensionHandle.EMPTY_ARRAY;
+			for (int i = 0; i < correspondingBundles.length; i++) {
+				result = (IExtension[]) addArrays(result, (IExtension[]) registryObjects.getHandles(registryObjects.getExtensionsFrom(correspondingBundles[i].getBundleId()), RegistryObjectManager.EXTENSION));
+			}
+			return result;
 		} finally {
 			access.exitRead();
 		}
