@@ -237,14 +237,6 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		int[] orphans = registryObjects.removeOrphans(extensionPoint.getUniqueIdentifier());
 		if (orphans == null)
 			return;
-		// otherwise, link them
-		int[] existingExtensions = extensionPoint.getRawChildren();
-		if (existingExtensions.length != 0) { //TODO Verify with someone that this never happens
-			System.err.println("this can not happen because this code is only being called when a new extensoin point is being added because a new plugin is being parsed"); //$NON-NLS-1$
-			//			newExtensions = new IExtension[existingExtensions.length + orphans.length];
-			//			System.arraycopy(existingExtensions, 0, newExtensions, 0, existingExtensions.length);
-			//			System.arraycopy(orphans, 0, newExtensions, existingExtensions.length, orphans.length);
-		}
 		link(extensionPoint, orphans);
 		recordChange(extensionPoint, orphans, IExtensionDelta.ADDED);
 	}
