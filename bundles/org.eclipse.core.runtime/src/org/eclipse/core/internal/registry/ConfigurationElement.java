@@ -135,7 +135,7 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 			throw new CoreException(status);
 		}
 
-		return createExecutableExtension((Bundle) contributingBundle, pluginName, className, initData, this, attributeName);
+		return createExecutableExtension(contributingBundle, pluginName, className, initData, this, attributeName);
 	}
 
 	private Object createExecutableExtension(Bundle bundle, String pluginName, String className, Object initData, ConfigurationElement cfig, String propertyName) throws CoreException {
@@ -207,7 +207,7 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 	String getAttributeAsIs(String attrName) {
 		if (propertiesAndValue.length <= 1)
 			return null;
-		int size = propertiesAndValue.length - (propertiesAndValue.length % 2);	//TODO Need to find a faster way
+		int size = propertiesAndValue.length - (propertiesAndValue.length % 2);
 		for (int i = 0; i < size; i += 2) {
 			if (propertiesAndValue[i].equals(attrName))
 				return propertiesAndValue[i + 1];
