@@ -294,18 +294,6 @@ public class ExtensionRegistry implements IExtensionRegistry {
 
 	private boolean basicRemove(long bundleId) {
 		// ignore anonymous namespaces
-		//		Bundle removedBundle = InternalPlatform.getDefault().getBundleContext().getBundle(bundleId);
-		//		if (Platform.isFragment(removedBundle))
-		//			removedBundle = Platform.getHosts(removedBundle)[0];
-		//		
-		//		if (removedBundle.getSymbolicName() == null)
-		//			return false;
-		//		
-		//		if (! registryObjects.getNamespaces().contains(removedBundle.getSymbolicName())) {
-		//			if (DEBUG)
-		//				System.out.println("********* Element unknown: " + removedBundle.getSymbolicName() + " - not removed."); //$NON-NLS-1$//$NON-NLS-2$
-		//			return false;
-		//		}
 		removeExtensionsAndExtensionPoints(bundleId);
 		registryObjects.removeNamespace(bundleId);
 		return true;
