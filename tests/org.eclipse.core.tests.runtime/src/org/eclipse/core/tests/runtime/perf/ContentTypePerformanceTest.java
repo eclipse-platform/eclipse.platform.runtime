@@ -24,6 +24,7 @@ import org.eclipse.core.runtime.content.IContentTypeManager;
 import org.eclipse.core.tests.harness.BundleTestingHelper;
 import org.eclipse.core.tests.harness.PerformanceTestRunner;
 import org.eclipse.core.tests.runtime.*;
+import org.eclipse.core.tests.runtime.content.NaySayerContentDescriber;
 import org.eclipse.core.tests.session.PerformanceSessionTestSuite;
 import org.eclipse.core.tests.session.SessionTestSuite;
 import org.osgi.framework.Bundle;
@@ -76,7 +77,7 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 		int local = nodes;
 		for (int i = 1; i < nodes + 1; i++) {
 			String id = "performance" + (created + i);
-			String definition = createContentType(id, baseTypeId, null, baseTypeId == null ? new String[] {id} : null, "org.eclipse.core.tests.runtime.NaySayer");
+			String definition = createContentType(id, baseTypeId, null, baseTypeId == null ? new String[] {id} : null, NaySayerContentDescriber.class.getName());
 			writer.write(definition);
 			writer.write(System.getProperty("line.separator"));
 			local += createContentTypes(writer, id, created + local, numberOfLevels - 1, minimumPerLevel, maximumPerLevel);
@@ -107,17 +108,17 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 		setUp.addTest(new ContentTypePerformanceTest("testDoSetUp"));
 		suite.addTest(setUp);
 
-		SessionTestSuite singleRun = new SessionTestSuite(PI_RUNTIME_TESTS, "singleSessionTests");
+		SessionTestSuite singleRun = new PerformanceSessionTestSuite(PI_RUNTIME_TESTS, 1, "singleSessionTests");
 		singleRun.addTest(new ContentTypePerformanceTest("testContentMatching"));
 		singleRun.addTest(new ContentTypePerformanceTest("testNameMatching"));
 		singleRun.addTest(new ContentTypePerformanceTest("testIsKindOf"));
 		suite.addTest(singleRun);
 
-		PerformanceSessionTestSuite loadCatalog = new PerformanceSessionTestSuite(PI_RUNTIME_TESTS, 5, "multipleSessionTests");
+		TestSuite loadCatalog = new PerformanceSessionTestSuite(PI_RUNTIME_TESTS, 5, "multipleSessionTests");
 		loadCatalog.addTest(new ContentTypePerformanceTest("testLoadCatalog"));
 		suite.addTest(loadCatalog);
 
-		SessionTestSuite tearDown = new SessionTestSuite(PI_RUNTIME_TESTS, "testDoTearDown");
+		TestSuite tearDown = new SessionTestSuite(PI_RUNTIME_TESTS, "testDoTearDown");
 		tearDown.addTest(new ContentTypePerformanceTest("testDoTearDown"));
 		suite.addTest(tearDown);
 		return suite;
@@ -156,6 +157,8 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 			try {
 				writer = new BufferedWriter(new FileWriter(pluginLocation.append("plugin.xml").toFile()), 0x10000);
 				writer.write("<plugin id=\"" + TEST_DATA_ID + "\" name=\"Content Type Performance Test Data\" version=\"1\">");
+				writer.write(System.getProperty("line.separator"));
+				writer.write("<requires><import plugin=\"" + PI_RUNTIME_TESTS + "\"/></requires>");
 				writer.write(System.getProperty("line.separator"));
 				writer.write("<extension point=\"org.eclipse.core.runtime.contentTypes\">");
 				writer.write(System.getProperty("line.separator"));
