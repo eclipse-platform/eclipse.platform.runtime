@@ -15,6 +15,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.*;
+import org.eclipse.core.internal.registry.Extension;
 import org.eclipse.core.internal.runtime.*;
 import org.eclipse.osgi.service.environment.EnvironmentInfo;
 import org.osgi.framework.*;
@@ -228,6 +229,7 @@ public abstract class Plugin implements BundleActivator {
 	 * @since 3.0
 	 */
 	public Plugin(BundleContext context) {
+		this.context = context;
 	}
 	/**
 	 * Creates a new plug-in runtime object for the given plug-in descriptor.
@@ -300,6 +302,11 @@ public abstract class Plugin implements BundleActivator {
 	 * @deprecated
 	 */
 	public final IPluginDescriptor getDescriptor() {
+		if (descriptor!=null)
+			return descriptor;
+		IPluginDescriptor descriptor = CompatibilityHelper.getPluginDescriptor(bundle.getGlobalName());
+		if (descriptor != null)
+			CompatibilityHelper.setPlugin(descriptor, this);
 		return descriptor;
 	}
 	/**
@@ -882,7 +889,7 @@ public abstract class Plugin implements BundleActivator {
 		}
 	}
 	/**
-	 * Returns the bundle with which this plug-in is associated.
+	 * Returns the bundle
 	 * 
 	 * @return the associated bundle
 	 * @since 3.0

@@ -13,6 +13,7 @@ package org.eclipse.core.internal.registry;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import org.eclipse.core.internal.runtime.CompatibilityHelper;
 import org.eclipse.core.runtime.*;
 
 /**
@@ -94,6 +95,6 @@ public class ExtensionPoint extends RegistryModelObject implements IExtensionPoi
 		return value;
 	}
 	public IPluginDescriptor getDeclaringPluginDescriptor() {
-		return Extension.getPluginDescriptor(getParentIdentifier());
+		return CompatibilityHelper.getPluginDescriptor(getParentIdentifier());
 	}
 }

@@ -11,6 +11,7 @@
 package org.eclipse.core.internal.registry;
 
 import java.lang.reflect.Method;
+import org.eclipse.core.internal.runtime.CompatibilityHelper;
 import org.eclipse.core.runtime.*;
 import org.osgi.framework.Bundle;
 
@@ -160,26 +161,9 @@ public class Extension extends RegistryModelObject implements IExtension {
 		fullyLoaded = value;
 	}
 	public IPluginDescriptor getDeclaringPluginDescriptor() {
-		return getPluginDescriptor(((BundleModel) getParent()).getName());
+		return CompatibilityHelper.getPluginDescriptor(((BundleModel) getParent()).getName());
 	}
 	public String getExtensionPointUniqueIdentifier() {
 		return getExtensionPointIdentifier();
-	}
-	
-	public static IPluginDescriptor getPluginDescriptor(String pluginId) {
-		//Here we use reflection so the runtime code can run without the compatibility
-		Bundle compatibility = org.eclipse.core.internal.runtime.InternalPlatform.getDefault().getBundle(IPlatform.PI_RUNTIME_COMPATIBILITY);
-		if (compatibility == null)
-			return null;
-
-		Class oldInternalPlatform = null;
-		try {
-			oldInternalPlatform = compatibility.loadClass("org.eclipse.core.internal.plugins.InternalPlatform"); //$NON-NLS-1$
-			Method getPluginDescriptor = oldInternalPlatform.getMethod("getPluginDescriptor", new Class[] { String.class }); //$NON-NLS-1$
-			return (IPluginDescriptor) getPluginDescriptor.invoke(oldInternalPlatform, new Object[] { pluginId });
-		} catch (Exception e) {
-			//Ignore the exceptions, return false
-		}
-		return null;
 	}
 }
