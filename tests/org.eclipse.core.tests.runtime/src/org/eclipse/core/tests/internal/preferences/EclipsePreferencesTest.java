@@ -645,7 +645,7 @@ public class EclipsePreferencesTest extends RuntimeTest {
 		// get the key list
 		try {
 			String[] result = node.keys();
-			assertEquals("2.0", keys, result);
+			assertEquals("2.0", keys, result, false);
 		} catch (BackingStoreException e) {
 			fail("0.99", e);
 		}
@@ -684,7 +684,7 @@ public class EclipsePreferencesTest extends RuntimeTest {
 		} catch (BackingStoreException e) {
 			fail("2.0", e);
 		}
-		assertEquals("2.1", childrenNames, result);
+		assertEquals("2.1", childrenNames, result, false);
 
 	}
 
@@ -774,7 +774,7 @@ public class EclipsePreferencesTest extends RuntimeTest {
 			for (int i = 0; i < keys.length; i++)
 				node.put(keys[i], values[i]);
 			assertEquals("2.0", keys.length, node.keys().length);
-			assertEquals("2.1", keys, node.keys());
+			assertEquals("2.1", keys, node.keys(), false);
 		} catch (BackingStoreException e) {
 			fail("2.99", e);
 		}
@@ -828,7 +828,7 @@ public class EclipsePreferencesTest extends RuntimeTest {
 			fail("0.99", e);
 		}
 		expected.add(scopeRoot.absolutePath());
-		assertEquals("0.1", expected.toArray(new String[0]), actual.toArray(new String[0]));
+		assertEquals("0.1", expected.toArray(new String[0]), actual.toArray(new String[0]), false);
 
 		Set children = new HashSet();
 		children.add(getUniqueString());
@@ -849,7 +849,7 @@ public class EclipsePreferencesTest extends RuntimeTest {
 		} catch (BackingStoreException e) {
 			fail("1.99", e);
 		}
-		assertEquals("1.0", expected.toArray(new String[0]), actual.toArray(new String[0]));
+		assertEquals("1.0", expected.toArray(new String[0]), actual.toArray(new String[0]), false);
 	}
 
 	public void testPreferenceChangeListeners() {
