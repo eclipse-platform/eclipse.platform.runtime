@@ -426,14 +426,14 @@ private static String[] initialize(URL pluginPathLocation/*R1.0 compatibility*/,
 
 	// if a platform location was not found in the arguments, compute one.		
 	if (baseLocation == null) {
-		// use user.dir.  If user.dir overlaps with the install dir, then make the 
-		// location be a workspace subdir of the install location.
+		// Default location for the workspace is <user.dir>/workspace/
 		baseLocation = System.getProperty("user.dir");
-		URL installURL = resolve(getInstallURL());
-		String installLocation = new File(installURL.getFile()).getAbsolutePath();
-		if (baseLocation.equals(installLocation))
-			baseLocation = new File(installLocation, WORKSPACE).getAbsolutePath();
+		if (!baseLocation.endsWith(File.separator))
+			baseLocation += File.separator;
+		baseLocation += WORKSPACE;
 	}
+	if (debugRequested)
+		System.out.println("Workspace location:\n   " + baseLocation);	
 
 	// load any debug options
 	loadOptions();
