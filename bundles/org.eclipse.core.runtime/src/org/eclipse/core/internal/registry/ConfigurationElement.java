@@ -39,7 +39,7 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 	//The name of the configuration element
 	private String name;
 
-	//The bundle for this configuration element
+	//The bundle from which classes will be loaded.
 	private Bundle contributingBundle;
 
 	ConfigurationElement() {
