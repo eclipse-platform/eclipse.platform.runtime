@@ -41,9 +41,9 @@ public final class ContentType implements IContentType {
 	private static final String DESCRIBER_ELEMENT = "describer"; //$NON-NLS-1$
 	final static byte NOT_ASSOCIATED = 0;
 
-	final static String PREF_DEFAULT_CHARSET = "charset"; //$NON-NLS-1$	
-	final static String PREF_FILE_EXTENSIONS = "file-extensions"; //$NON-NLS-1$
-	final static String PREF_FILE_NAMES = "file-names"; //$NON-NLS-1$
+	public final static String PREF_DEFAULT_CHARSET = "charset"; //$NON-NLS-1$	
+	public final static String PREF_FILE_EXTENSIONS = "file-extensions"; //$NON-NLS-1$
+	public final static String PREF_FILE_NAMES = "file-names"; //$NON-NLS-1$
 	final static byte PRIORITY_HIGH = 1;
 	final static byte PRIORITY_LOW = -1;
 	final static byte PRIORITY_NORMAL = 0;
@@ -57,6 +57,7 @@ public final class ContentType implements IContentType {
 	private IContentType[] children;
 	private IConfigurationElement contentTypeElement;
 	private String defaultCharset;
+	private String userCharset;
 	private IContentDescription defaultDescription;
 	private IContentDescriber describer;
 	private List fileSpecs;
@@ -84,7 +85,24 @@ public final class ContentType implements IContentType {
 		contentType.defaultCharset = defaultCharset;
 		contentType.contentTypeElement = contentTypeElement;
 		contentType.baseTypeId = baseTypeId;
+		contentType.processPreferences();
 		return contentType;
+	}
+
+	private void processPreferences() {
+		Preferences contentTypeNode = manager.getPreferences().node(getId());
+		// user set default charset
+		this.userCharset = contentTypeNode.get(PREF_DEFAULT_CHARSET, null);
+		// user set file names 
+		String userSetFileNames = contentTypeNode.get(PREF_FILE_NAMES, null);
+		String[] fileNames = parseItems(userSetFileNames);
+		for (int i = 0; i < fileNames.length; i++)
+			internalAddFileSpec(fileNames[i], FILE_NAME_SPEC | SPEC_USER_DEFINED);
+		// user set file extensions
+		String userSetFileExtensions = contentTypeNode.get(PREF_FILE_EXTENSIONS, null);
+		String[] fileExtensions = parseItems(userSetFileExtensions);
+		for (int i = 0; i < fileExtensions.length; i++)
+			internalAddFileSpec(fileExtensions[i], FILE_EXTENSION_SPEC | SPEC_USER_DEFINED);
 	}
 
 	static FileSpec createFileSpec(String fileSpec, int type) {
@@ -133,7 +151,7 @@ public final class ContentType implements IContentType {
 			return ""; //$NON-NLS-1$
 		StringBuffer result = new StringBuffer();
 		for (int i = 0; i < list.length; i++) {
-			result.append(list);
+			result.append(list[i]);
 			result.append(',');
 		}
 		// ignore last comma
@@ -152,12 +170,16 @@ public final class ContentType implements IContentType {
 		if (type != FILE_EXTENSION_SPEC && type != FILE_NAME_SPEC)
 			throw new IllegalArgumentException("Unknown type: " + type); //$NON-NLS-1$		
 		if (!internalAddFileSpec(fileSpec, type | SPEC_USER_DEFINED))
+			// the entry was already there, nothing to do...
 			return;
-		// persist using preferences
+		// notify listeners
+		manager.fireContentTypeChangeEvent(this);
+		// update preferences
 		String key = getPreferenceKey(type);
 		Preferences contentTypeNode = manager.getPreferences().node(getId());
-		//TODO are we including user and plug-in provided file specs here?
-		contentTypeNode.put(key, toListString(fileSpecs));
+		final String[] userSet = internalGetFileSpecs(type | IGNORE_PRE_DEFINED);
+		contentTypeNode.put(key, toListString(userSet));
+		// persist preferences
 		try {
 			contentTypeNode.flush();
 		} catch (BackingStoreException bse) {
@@ -185,7 +207,7 @@ public final class ContentType implements IContentType {
 			invalidateDescriber(e);
 			throw e;
 		} finally {
-			((LazyInputStream) contents).reset();
+			((LazyInputStream) contents).rewind();
 		}
 	}
 
@@ -207,13 +229,7 @@ public final class ContentType implements IContentType {
 			invalidateDescriber(e);
 			throw e;
 		} finally {
-			try {
-				contents.reset();
-			} catch (IOException ioe) {
-				// this should only happen if the describer closed the reader (it should not)
-				String message = Policy.bind("content.errorReadingContents", getId()); //$NON-NLS-1$ 
-				log(message, ioe);
-			}
+			((LazyReader) contents).rewind();
 		}
 	}
 
@@ -242,8 +258,7 @@ public final class ContentType implements IContentType {
 	public String getDefaultCharset() {
 		if (aliasTarget != null)
 			return getTarget().getDefaultCharset();
-		Preferences contentTypeNode = manager.getPreferences().node(getId());
-		String currentCharset = contentTypeNode.get(PREF_DEFAULT_CHARSET, internalGetDefaultCharset());
+		String currentCharset = userCharset != null ? userCharset : internalGetDefaultCharset();
 		// an empty string as charset means: no default charset
 		return "".equals(currentCharset) ? null : currentCharset; //$NON-NLS-1$
 	}
@@ -307,6 +322,10 @@ public final class ContentType implements IContentType {
 	public String[] getFileSpecs(int typeMask) {
 		if (aliasTarget != null)
 			return getTarget().getFileSpecs(typeMask);
+		return internalGetFileSpecs(typeMask);
+	}
+
+	private String[] internalGetFileSpecs(int typeMask) {
 		if (fileSpecs == null)
 			return new String[0];
 		// invert the last two bits so it is easier to compare
@@ -347,10 +366,6 @@ public final class ContentType implements IContentType {
 
 	byte getValidation() {
 		return validation;
-	}
-
-	boolean hasAnyFileSpec() {
-		return fileSpecs != null && !fileSpecs.isEmpty();
 	}
 
 	/**
@@ -436,30 +451,44 @@ public final class ContentType implements IContentType {
 	public byte internalIsAssociatedWith(String fileName) {
 		if (aliasTarget != null)
 			return getTarget().internalIsAssociatedWith(fileName);
-		if (fileSpecs == null) {
-			IContentType baseType = getBaseType();
-			return baseType == null ? NOT_ASSOCIATED : ((ContentType) baseType).internalIsAssociatedWith(fileName);
-		}
 		if (hasFileSpec(fileName, FILE_NAME_SPEC))
 			return ASSOCIATED_BY_NAME;
 		String fileExtension = ContentTypeManager.getFileExtension(fileName);
-		return (fileExtension == null || !hasFileSpec(fileExtension, FILE_EXTENSION_SPEC)) ? NOT_ASSOCIATED : ASSOCIATED_BY_EXTENSION;
+		if (hasFileSpec(fileExtension, FILE_EXTENSION_SPEC))
+			return ASSOCIATED_BY_EXTENSION;
+		// if does not have *built-in* file specs, delegate to parent (if any)
+		if (!hasAnyFileSpec(SPEC_PRE_DEFINED)) {
+			IContentType baseType = getBaseType();
+			if (baseType != null)
+				return ((ContentType) baseType).internalIsAssociatedWith(fileName);
+		}
+		return NOT_ASSOCIATED;
 	}
 
-	void internalRemoveFileSpec(String fileSpec, int typeMask) {
-		if (aliasTarget != null) {
-			aliasTarget.internalRemoveFileSpec(fileSpec, typeMask);
-			return;
+	private boolean hasAnyFileSpec(int typeMask) {
+		if (fileSpecs == null || fileSpecs.isEmpty())
+			return false;
+		for (Iterator i = fileSpecs.iterator(); i.hasNext();) {
+			FileSpec spec = (FileSpec) i.next();
+			if ((spec.getType() & typeMask) == typeMask)
+				return true;
 		}
+		return false;
+	}
+
+	boolean internalRemoveFileSpec(String fileSpec, int typeMask) {
+		if (aliasTarget != null)
+			return aliasTarget.internalRemoveFileSpec(fileSpec, typeMask);
 		if (fileSpecs == null)
-			return;
+			return false;
 		for (Iterator i = fileSpecs.iterator(); i.hasNext();) {
 			FileSpec spec = (FileSpec) i.next();
 			if ((spec.getType() == typeMask) && fileSpec.equals(spec.getText())) {
 				i.remove();
-				return;
+				return true;
 			}
 		}
+		return false;
 	}
 
 	private IContentDescriber invalidateDescriber(Throwable reason) {
@@ -507,11 +536,20 @@ public final class ContentType implements IContentType {
 		}
 		if (type != FILE_EXTENSION_SPEC && type != FILE_NAME_SPEC)
 			throw new IllegalArgumentException("Unknown type: " + type); //$NON-NLS-1$
-		internalRemoveFileSpec(fileSpec, type | SPEC_USER_DEFINED);
-		// persist using preferences
+		if (!internalRemoveFileSpec(fileSpec, type | SPEC_USER_DEFINED))
+			// the entry was not there... nothing to do
+			return;
+		// notify listeners
+		manager.fireContentTypeChangeEvent(this);
+		// update preferences
 		String key = getPreferenceKey(type);
 		Preferences contentTypeNode = manager.getPreferences().node(getId());
-		contentTypeNode.put(key, toListString(fileSpecs));
+		final String[] userSet = internalGetFileSpecs(type | IGNORE_PRE_DEFINED);
+		if (userSet.length == 0)
+			contentTypeNode.remove(key);
+		else
+			contentTypeNode.put(key, toListString(userSet));
+		// persist using preferences
 		try {
 			contentTypeNode.flush();
 		} catch (BackingStoreException bse) {
@@ -537,12 +575,22 @@ public final class ContentType implements IContentType {
 	 * (non-Javadoc) 
 	 * @see org.eclipse.core.runtime.content.IContentType#setDefaultCharset(java.lang.String)
 	 */
-	public void setDefaultCharset(String userCharset) throws CoreException {
+	public void setDefaultCharset(String newCharset) throws CoreException {
+		if (userCharset == null) {
+			if (newCharset == null)
+				return;
+		} else if (userCharset.equals(newCharset))
+			return;
+		userCharset = newCharset;
+		// notify listeners
+		manager.fireContentTypeChangeEvent(this);
+		// update preferences
 		Preferences contentTypeNode = manager.getPreferences().node(getId());
 		if (userCharset == null)
 			contentTypeNode.remove(PREF_DEFAULT_CHARSET);
 		else
 			contentTypeNode.put(PREF_DEFAULT_CHARSET, userCharset);
+		// persist preferences
 		try {
 			contentTypeNode.flush();
 		} catch (BackingStoreException bse) {

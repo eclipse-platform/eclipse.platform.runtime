@@ -124,7 +124,6 @@ public class LazyInputStream extends InputStream {
 
 	public void reset() {
 		offset = mark;
-		mark = 0;
 	}
 
 	public long skip(long toSkip) throws IOException {
@@ -134,5 +133,10 @@ public class LazyInputStream extends InputStream {
 		long skipped = Math.min(toSkip, bufferSize - offset);
 		offset += skipped;
 		return skipped;
+	}
+
+	public void rewind() {
+		mark = 0;
+		offset = 0;
 	}
 }

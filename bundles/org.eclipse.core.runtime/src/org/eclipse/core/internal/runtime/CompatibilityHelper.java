@@ -22,7 +22,8 @@ import org.osgi.framework.Bundle;
  * @deprecated Marked as deprecated to suppress deprecation warnings.
  */
 public class CompatibilityHelper {
-
+	private static final String OPTION_DEBUG_COMPATIBILITY = Platform.PI_RUNTIME + "/compatibility/debug"; //$NON-NLS-1$
+	public static final boolean DEBUG = Boolean.TRUE.toString().equalsIgnoreCase(InternalPlatform.getDefault().getOption(OPTION_DEBUG_COMPATIBILITY));	
 	public static final String PI_RUNTIME_COMPATIBILITY = "org.eclipse.core.runtime.compatibility"; //$NON-NLS-1$
 	public static Bundle compatibility = null;
 	
@@ -57,7 +58,12 @@ public class CompatibilityHelper {
 			Method getPluginDescriptor = oldInternalPlatform.getMethod("getPluginDescriptor", new Class[] {String.class}); //$NON-NLS-1$
 			return (IPluginDescriptor) getPluginDescriptor.invoke(oldInternalPlatform, new Object[] {pluginId});
 		} catch (Exception e) {
-			//Ignore the exceptions, return false
+			if (DEBUG) {				
+				String msg = "Error running compatibility code"; //$NON-NLS-1$
+				IStatus error = new Status(IStatus.ERROR, Platform.PI_RUNTIME, 1, msg, e);
+				InternalPlatform.getDefault().log(error);
+			}
+			//Ignore the exceptions, return null			
 		}
 		return null;
 	}
