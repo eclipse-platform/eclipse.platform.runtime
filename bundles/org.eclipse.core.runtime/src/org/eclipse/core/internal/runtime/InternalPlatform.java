@@ -1207,28 +1207,16 @@ public final class InternalPlatform implements IPlatform {
 	public IPath getStateLocation(Bundle bundle) {
 		return getStateLocation(bundle, true);
 	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.core.runtime.IPlatform#getResourceBundle(org.osgi.framework.Bundle)
-	 */
 	public ResourceBundle getResourceBundle(Bundle bundle) throws MissingResourceException {
-		// TODO Auto-generated method stub
-		return null;
+		//TODO
+		throw new NoSuchMethodError("getResourceBundleString");
 	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.core.runtime.IPlatform#getResourceString(org.osgi.framework.Bundle, java.lang.String)
-	 */
 	public String getResourceString(Bundle bundle, String value) {
-		// TODO Auto-generated method stub
-		return null;
+		//TODO
+		throw new NoSuchMethodError("getResourceBundleString");
 	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.core.runtime.IPlatform#getResourceString(org.osgi.framework.Bundle, java.lang.String, java.util.ResourceBundle)
-	 */
 	public String getResourceString(Bundle bundle, String value, ResourceBundle resourceBundle) {
-		// TODO Auto-generated method stub
-		return null;
+		//TODO
+		throw new NoSuchMethodError("getResourceBundleString");
 	}
 }
