@@ -176,7 +176,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 				return policy.getList();
 				
 			if (policy.getType()==ISitePolicy.USER_EXCLUDE) {
-				List detectedPlugins = Arrays.asList(getDetectedPlugins());
+				ArrayList detectedPlugins = new ArrayList(Arrays.asList(getDetectedPlugins()));
 				String[] excludedPlugins = policy.getList();
 				for (int i=0; i<excludedPlugins.length; i++) {
 					if (detectedPlugins.contains(excludedPlugins[i]))
@@ -641,6 +641,8 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			try {
 				pathURL = new URL(sites[i].getURL(),"fragments/");
 				path.add(pathURL);
+				if (DEBUG)
+					debug("   "+pathURL.toString());
 			} catch(MalformedURLException e) {
 				if (DEBUG)
 					debug("   bad URL: "+e);
@@ -840,7 +842,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	private void computeChangeStamp() {
 		computeFeaturesChangeStamp();
 		computePluginsChangeStamp();
-		changeStamp = configLocation.hashCode() ^ featuresChangeStamp ^ pluginsChangeStamp;
+		changeStamp = featuresChangeStamp ^ pluginsChangeStamp;
 		changeStampIsValid = true;
 	}
 		
