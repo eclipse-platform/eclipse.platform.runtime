@@ -820,11 +820,15 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		}
 	}
 	
+	URL getPluginPath(String pluginId) {
+		return getPluginPath(pluginId, null);
+	}	
+		
 	// This method is currently public because it is called by InternalPlatform.
 	// However, it is NOT intended as API
 	// FIXME: restructure the code so that InternalBootLoader passes the
 	// required information to InternalPlatform
-	public URL getPluginPath(String pluginId) {
+	public URL getPluginPath(String pluginId, String versionId) {
 		// return the plugin path element for the specified plugin. This method
 		// is used during boot processing to obtain "kernel" plugins whose
 		// class loaders must be created prior to the plugin registry being 

@@ -5,13 +5,14 @@ package org.eclipse.core.internal.plugins;
  * All Rights Reserved.
  */
 
-import org.eclipse.core.runtime.*;
-import org.eclipse.core.runtime.model.*;
+import java.io.*;
+import java.net.MalformedURLException;
+import java.net.URL;
+
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.internal.runtime.Policy;
-import java.io.*;
-import java.net.URL;
-import java.net.MalformedURLException;
+import org.eclipse.core.runtime.*;
+import org.eclipse.core.runtime.model.*;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXParseException;
 
@@ -41,6 +42,14 @@ private String[] getPathMembers(URL path) {
 		// XXX: attempt to read URL and see if we got html dir page
 	}
 	return list == null ? new String[0] : list;
+}
+/**
+ * Reports an error and returns true.
+ */
+private boolean parseProblem(String message) {
+	factory.error(new Status(
+		IStatus.WARNING, Platform.PI_RUNTIME, Platform.PARSE_PROBLEM, message, null));
+	return true;
 }
 private PluginRegistryModel parseRegistry(URL[] pluginPath) {
 	long startTick = System.currentTimeMillis();
@@ -91,39 +100,54 @@ private void processPluginPathEntry(PluginRegistryModel registry, URL location) 
 		// directory entry - search for plugins
 		String[] members = getPathMembers(location);
 		for (int j = 0; j < members.length; j++) {
+			boolean found = false;
 			try {
-				boolean found = processPluginPathFile(registry, new URL(location, members[j] + "/plugin.xml"));
+				found = processPluginPathFile(registry, new URL(location, members[j] + "/plugin.xml"));
 				if (!found)
 					found = processPluginPathFile(registry, new URL(location, members[j] + "/fragment.xml"));
 			} catch (MalformedURLException e) {
 			}
 			if (debug)
-				debug("Processed - " + members[j]);
+				debug(found ? "Processed - " : "Processed (not found) - " + members[j]);
 		}
 	} else {
 		// specific file entry - load the given file
 		boolean found = processPluginPathFile(registry, location);
 		if (debug)
-			debug("Processed - " + location);
+			debug(found ? "Processed - " : "Processed (not found) - " + location);
 	}
 }
+/**
+ * @return true if a file was found at the given location, and false otherwise.
+ */
 private boolean processPluginPathFile(PluginRegistryModel registry, URL location) {
 	PluginModel entry = processManifestFile(location);
 	if (entry == null)
 		return false;
-
+	if (entry instanceof PluginDescriptorModel) {
+		if (entry.getId() == null || entry.getVersion() == null) {
+			return parseProblem(Policy.bind("parse.nullPluginIdentifier", location.toString()));
+		}
+		//skip duplicate entries
+		if (registry.getPlugin(entry.getId(), entry.getVersion()) != null) {
+			return parseProblem(Policy.bind("parse.duplicatePlugin", entry.getId()));
+		}
+		registry.addPlugin((PluginDescriptorModel) entry);
+	} else {
+		if (entry.getId() == null || entry.getVersion() == null) {
+			return parseProblem(Policy.bind("parse.nullFragmentIdentifier", location.toString()));
+		}
+		if (entry instanceof PluginFragmentModel) {
+			registry.addFragment((PluginFragmentModel) entry);
+		} else {
+			return parseProblem(Policy.bind("parse.unknownEntry", location.toString()));
+		}
+	}
 	String url = location.toString();
 	url = url.substring(0, 1 + url.lastIndexOf('/'));
-	if (entry instanceof PluginDescriptorModel)
-		registry.addPlugin((PluginDescriptorModel) entry);
-	else
-		if (entry instanceof PluginFragmentModel)
-			registry.addFragment((PluginFragmentModel) entry);
-		else
-			// XXX log some kind of error or throw an exception here
-			return false;
 	entry.setRegistry(registry);
 	entry.setLocation(url);
+	InternalPlatform.addLastModifiedTime(location.getFile(), new File(location.getFile()).lastModified());
 	return true;
 }
 }
