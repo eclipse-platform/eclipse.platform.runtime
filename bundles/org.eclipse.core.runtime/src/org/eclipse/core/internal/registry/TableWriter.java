@@ -249,6 +249,7 @@ public class TableWriter {
 		}
 		for (Iterator iter = elements.iterator(); iter.hasNext();) {
 			Map.Entry entry = (Map.Entry) iter.next();
+			mainOutput.writeInt(((int[]) entry.getValue()).length);
 			saveExtensions((IExtension[]) objectManager.getHandles((int[]) entry.getValue(), RegistryObjectManager.EXTENSION), mainOutput);
 		}
 		outputOrphan.close();

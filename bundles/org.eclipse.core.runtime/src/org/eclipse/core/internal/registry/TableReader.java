@@ -11,9 +11,7 @@
 package org.eclipse.core.internal.registry;
 
 import java.io.*;
-import java.util.*;
 import java.util.HashMap;
-import java.util.Map;
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.runtime.*;
 import org.osgi.framework.Bundle;
@@ -214,7 +212,7 @@ public class TableReader {
 		int[] children = ce.getRawChildren();
 		if (depth + 1 > maxDepth)
 			return ce;
-		
+
 		for (int i = 0; i < children.length; i++) {
 			ConfigurationElement tmp = loadConfigurationElementAndChildren(currentStream, extraIs, depth + 1, maxDepth, objectManager, actualContributingBundle);
 			objectManager.add(tmp, holdObjects);
@@ -256,7 +254,7 @@ public class TableReader {
 		return new Extension(self, simpleId, namespace, children, extraData);
 	}
 
-	public ExtensionPoint loadExtensionPointTree(int offset, RegistryObjectManager objects) {	//TODO See if this can be merged with the readAllEXtensionPointTree
+	public ExtensionPoint loadExtensionPointTree(int offset, RegistryObjectManager objects) { //TODO See if this can be merged with the readAllEXtensionPointTree
 		try {
 			ExtensionPoint xpt = (ExtensionPoint) loadExtensionPoint(offset);
 			int[] children = xpt.getRawChildren();
@@ -374,26 +372,30 @@ public class TableReader {
 		}
 	}
 
+	private void loadAllOrphans(RegistryObjectManager objectManager) throws IOException {
+		//Read the extensions and configuration elements of the orphans
+		int orphans = objectManager.getOrphanExtensions().size();
+		for (int k = 0; k < orphans; k++) {
+			int numberOfOrphanExtensions = mainInput.readInt();
+			for (int i = 0; i < numberOfOrphanExtensions; i++) {
+				loadFullExtension(objectManager);
+			}
+			for (int i = 0; i < numberOfOrphanExtensions; i++) {
+				int nbrOfCe = mainInput.readInt();
+				for (int j = 0; j < nbrOfCe; j++) {
+					objectManager.add(loadConfigurationElementAndChildren(mainInput, extraInput, 1, Integer.MAX_VALUE, objectManager, null), true);
+				}
+			}
+		}
+	}
+
 	public boolean readAllCache(RegistryObjectManager objectManager) {
 		try {
 			int size = objectManager.getExtensionPoints().size();
 			for (int i = 0; i < size; i++) {
 				objectManager.add(readAllExtensionPointTree(objectManager), holdObjects);
 			}
-			int numberOfOrphanExtensions = 0;
-			Set orphans = objectManager.getOrphanExtensions().entrySet();
-			for (Iterator iter = orphans.iterator(); iter.hasNext();) {
-				Map.Entry entry = (Map.Entry) iter.next();
-				numberOfOrphanExtensions += ((int[]) entry.getValue()).length;
-			}
-			//Read the extensions and configuration elements of the orphans
-			for (int i = 0; i < numberOfOrphanExtensions; i++) {
-				Extension ext = loadFullExtension(objectManager);
-				int[] children = ext.getRawChildren();
-				for (int j = 0; j < children.length; j++) {
-					objectManager.add(loadConfigurationElementAndChildren(mainInput, extraInput, 1, Integer.MAX_VALUE, objectManager, null), true);
-				}
-			}
+			loadAllOrphans(objectManager);
 		} catch (IOException e) {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error while reading the whole cache", e));
 			return false;
