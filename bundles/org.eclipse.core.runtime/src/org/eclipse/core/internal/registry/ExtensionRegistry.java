@@ -180,7 +180,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	 * interested on changes in the given plug-in.
 	 * </p>
 	 */
-	public void add(Namespace element) {
+	public void add(Contribution element) {
 		access.enterWrite();
 		try {
 			basicAdd(element, true);
@@ -190,7 +190,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		}
 	}
 
-	public void add(Namespace[] elements) {
+	public void add(Contribution[] elements) {
 		access.enterWrite();
 		try {
 			for (int i = 0; i < elements.length; i++)
@@ -259,7 +259,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		recordChange(extensionPoint, orphans, IExtensionDelta.ADDED);
 	}
 
-	private void addExtensionsAndExtensionPoints(Namespace element) {
+	private void addExtensionsAndExtensionPoints(Contribution element) {
 		// now add and resolve extensions and extension points
 		int[] extPoints = element.getExtensionPoints();
 		for (int i = 0; i < extPoints.length; i++)
@@ -280,9 +280,9 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		}
 	}
 
-	private void basicAdd(Namespace element, boolean link) {
+	private void basicAdd(Contribution element, boolean link) {
 		// ignore anonymous namespaces
-		if (element.getUniqueIdentifier() == null)
+		if (element.getNamespace() == null)
 			return;
 
 		registryObjects.addNamespace(element);
@@ -477,7 +477,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			Bundle[] correspondingBundles = findAllBundles(namespace);
 			IExtensionPoint[] result = ExtensionPointHandle.EMPTY_ARRAY;
 			for (int i = 0; i < correspondingBundles.length; i++) {
-				result = (IExtensionPoint[]) addArrays(result, (IExtensionPoint[]) registryObjects.getHandles(registryObjects.getExtensionPointsFrom(correspondingBundles[i].getBundleId()), RegistryObjectManager.EXTENSION_POINT));
+				result = (IExtensionPoint[]) addArrays(result, registryObjects.getHandles(registryObjects.getExtensionPointsFrom(correspondingBundles[i].getBundleId()), RegistryObjectManager.EXTENSION_POINT));
 			}
 			return result;
 		} finally {
@@ -509,7 +509,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			Bundle[] correspondingBundles = findAllBundles(namespace);
 			IExtension[] result = ExtensionHandle.EMPTY_ARRAY;
 			for (int i = 0; i < correspondingBundles.length; i++) {
-				result = (IExtension[]) addArrays(result, (IExtension[]) registryObjects.getHandles(registryObjects.getExtensionsFrom(correspondingBundles[i].getBundleId()), RegistryObjectManager.EXTENSION));
+				result = (IExtension[]) addArrays(result, registryObjects.getHandles(registryObjects.getExtensionsFrom(correspondingBundles[i].getBundleId()), RegistryObjectManager.EXTENSION));
 			}
 			return result;
 		} finally {
@@ -619,7 +619,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		Extension extension = (Extension) registryObjects.getObject(extensionId, RegistryObjectManager.EXTENSION);
 		String xptName = extension.getExtensionPointIdentifier();
 		ExtensionPoint extPoint = registryObjects.getExtensionPointObject(xptName);
-		if (extPoint == null) {	//TODO Check the behavior of this block
+		if (extPoint == null) {
 			// not found - maybe it was an orphan extension
 			int[] existingOrphanExtensions = (int[]) orphanExtensions.get(xptName);
 			if (existingOrphanExtensions == null)
@@ -746,7 +746,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 
 		String debugOption = InternalPlatform.getDefault().getOption(OPTION_DEBUG_EVENTS_EXTENSION);
 		DEBUG = debugOption == null ? false : debugOption.equalsIgnoreCase("true"); //$NON-NLS-1$	
-		if (true)
+		if (DEBUG)
 			addRegistryChangeListener(new IRegistryChangeListener() {
 				public void registryChanged(IRegistryChangeEvent event) {
 					System.out.println(event);

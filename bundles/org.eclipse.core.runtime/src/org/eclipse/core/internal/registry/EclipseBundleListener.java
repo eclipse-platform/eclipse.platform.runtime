@@ -97,12 +97,12 @@ public class EclipseBundleListener implements SynchronousBundleListener {
 		// note that this does not work for update cases.
 		if (registry.hasNamespace(bundle.getBundleId()))	
 			return;
-		Namespace bundleModel = getBundleModel(bundle);
+		Contribution bundleModel = getBundleModel(bundle);
 		if (bundleModel == null)
 			return;
 		// bug 70941
 		// need to ensure we can find resource bundles from fragments 
-		if (Platform.PI_RUNTIME.equals(bundleModel.getUniqueIdentifier()))
+		if (Platform.PI_RUNTIME.equals(bundleModel.getNamespace()))
 			Policy.forgetResourceBundle();
 		// Do not synchronize on registry here because the registry handles
 		// the synchronization for us in registry.add		
@@ -113,7 +113,7 @@ public class EclipseBundleListener implements SynchronousBundleListener {
 	 * Tries to create a bundle model from a plugin/fragment manifest in the
 	 * bundle.
 	 */
-	private Namespace getBundleModel(Bundle bundle) {
+	private Contribution getBundleModel(Bundle bundle) {
 		// bail out if system bundle
 		if (bundle.getBundleId() == 0)
 			return null;
@@ -145,7 +145,7 @@ public class EclipseBundleListener implements SynchronousBundleListener {
 				//Ignore the exception
 			}
 			ExtensionsParser parser = new ExtensionsParser(problems);
-			Namespace bundleModel = new Namespace(bundle); 
+			Contribution bundleModel = new Contribution(bundle); 
 			parser.parseManifest(xmlTracker, new InputSource(is), manifestType, manifestName, registry.getObjectManager(), bundleModel, b);
 			if (problems.getSeverity() != IStatus.OK)
 				InternalPlatform.getDefault().log(problems);

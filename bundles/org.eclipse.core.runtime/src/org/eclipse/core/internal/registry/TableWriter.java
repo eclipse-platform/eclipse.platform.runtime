@@ -95,7 +95,7 @@ public class TableWriter {
 		KeyedElement[] elements = newNamespaces.elements();
 		outputNamespace.writeInt(elements.length);
 		for (int i = 0; i < elements.length; i++) {
-			Namespace elt = (Namespace) elements[i];
+			Contribution elt = (Contribution) elements[i];
 			outputNamespace.writeLong(elt.getContributingBundle().getBundleId());
 			saveArray(elt.getRawChildren(), outputNamespace);
 		}

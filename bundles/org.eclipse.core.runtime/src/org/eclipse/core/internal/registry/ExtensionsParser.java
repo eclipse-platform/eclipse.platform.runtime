@@ -78,7 +78,7 @@ public class ExtensionsParser extends DefaultHandler {
 	// Keep track of the object encountered.
 	private RegistryObjectManager objectManager;
 	
-	private Namespace namespace;
+	private Contribution namespace;
 	
 	/** 
 	 * Status code constant (value 1) indicating a problem in a bundle extensions
@@ -178,7 +178,6 @@ public class ExtensionsParser extends DefaultHandler {
 			case BUNDLE_STATE :
 				if (elementName.equals(manifestType)) {
 					stateStack.pop();
-					Namespace root = (Namespace) objectStack.peek();
 
 					ArrayList extensionPoints = scratchVectors[EXTENSION_POINT_INDEX];
 					ArrayList extensions = scratchVectors[EXTENSION_INDEX];
@@ -186,7 +185,7 @@ public class ExtensionsParser extends DefaultHandler {
 					int position = 2;
 					// Put the extension points into this namespace
 					if (extensionPoints.size() > 0) {
-						namespaceChildren[Namespace.EXTENSION_POINT] = extensionPoints.size();
+						namespaceChildren[Contribution.EXTENSION_POINT] = extensionPoints.size();
 						for (Iterator iter = extensionPoints.iterator(); iter.hasNext();) {
 							namespaceChildren[position++] = ((NestedRegistryModelObject) iter.next()).getObjectId();
 						}
@@ -196,13 +195,13 @@ public class ExtensionsParser extends DefaultHandler {
 					// Put the extensions into this namespace too
 					if (extensions.size() > 0) {
 						Extension[] renamedExtensions = fixRenamedExtensionPoints((Extension[]) extensions.toArray(new Extension[extensions.size()]));
-						namespaceChildren[Namespace.EXTENSION] = renamedExtensions.length;
+						namespaceChildren[Contribution.EXTENSION] = renamedExtensions.length;
 						for (int i = 0; i < renamedExtensions.length; i++) {
 							namespaceChildren[position++] = renamedExtensions[i].getObjectId();
 						}
 						extensions.clear();
 					}
-					root.setRawChildren(namespaceChildren);
+					namespace.setRawChildren(namespaceChildren);
 				}
 				break;
 			case BUNDLE_EXTENSION_POINT_STATE :
@@ -215,9 +214,7 @@ public class ExtensionsParser extends DefaultHandler {
 					stateStack.pop();
 					// Finish up extension object
 					Extension currentExtension = (Extension) objectStack.pop();
-					Namespace parent = (Namespace) objectStack.peek();
-					//TODO Need to check if this is the correct value for fragments
-					currentExtension.setNamespace(parent.getHost().getSymbolicName());
+					currentExtension.setNamespace(namespace.getNamespace());
 					scratchVectors[EXTENSION_INDEX].add(currentExtension);
 				}
 				break;
@@ -275,7 +272,7 @@ public class ExtensionsParser extends DefaultHandler {
 
 		// create a new Configuration Element and push it onto the object stack
 		ConfigurationElement currentConfigurationElement = new ConfigurationElement();
-		currentConfigurationElement.setContributingBundle(namespace.getHost());
+		currentConfigurationElement.setContributingBundle(namespace.getNamespaceBundle());
 		objectStack.push(currentConfigurationElement);
 		currentConfigurationElement.setName(elementName);
 
@@ -337,7 +334,7 @@ public class ExtensionsParser extends DefaultHandler {
 		error(new Status(IStatus.WARNING, Platform.PI_RUNTIME, PARSE_PROBLEM, msg, ex));
 	}
 
-	public Namespace parseManifest(ServiceTracker factoryTracker, InputSource in, String manifestKind, String manifestName, RegistryObjectManager registryObjects, Namespace currentNamespace, ResourceBundle bundle) throws ParserConfigurationException, SAXException, IOException {
+	public Contribution parseManifest(ServiceTracker factoryTracker, InputSource in, String manifestKind, String manifestName, RegistryObjectManager registryObjects, Contribution currentNamespace, ResourceBundle bundle) throws ParserConfigurationException, SAXException, IOException {
 		long start = 0;
 		this.resources = bundle;
 		this.objectManager = registryObjects;
@@ -368,7 +365,7 @@ public class ExtensionsParser extends DefaultHandler {
 			}
 			factory.setValidating(false);
 			factory.newSAXParser().parse(in, this);
-			return (Namespace) objectStack.pop();
+			return (Contribution) objectStack.pop();
 		} finally {
 			if (InternalPlatform.DEBUG) {
 				cumulativeTime = cumulativeTime + (System.currentTimeMillis() - start);
@@ -413,7 +410,7 @@ public class ExtensionsParser extends DefaultHandler {
 				// check if point is specified as a simple or qualified name
 				String targetName;
 				if (attrValue.lastIndexOf('.') == -1) {	
-					String baseId = namespace.getUniqueIdentifier();
+					String baseId = namespace.getNamespace();
 					targetName = baseId + "." + attrValue; //$NON-NLS-1$
 				} else
 					targetName = attrValue;
@@ -465,8 +462,7 @@ public class ExtensionsParser extends DefaultHandler {
 			if (attrName.equals(EXTENSION_POINT_NAME))
 				currentExtPoint.setLabel(translate(attrValue));
 			else if (attrName.equals(EXTENSION_POINT_ID)) {
-				Namespace root = (Namespace) objectStack.peek();
-				currentExtPoint.setUniqueIdentifier(root.getUniqueIdentifier() + '.' + attrValue);
+				currentExtPoint.setUniqueIdentifier(namespace.getNamespace() + '.' + attrValue);
 			}
 			else if (attrName.equals(EXTENSION_POINT_SCHEMA))
 				currentExtPoint.setSchema(attrValue);
@@ -482,9 +478,8 @@ public class ExtensionsParser extends DefaultHandler {
 		}
 
 		objectManager.addExtensionPoint(currentExtPoint, true);
-		Namespace root = (Namespace) objectStack.peek();
-		currentExtPoint.setNamespace(root.getHost().getSymbolicName());
-		currentExtPoint.setBundleId(root.getHost().getBundleId());
+		currentExtPoint.setNamespace(namespace.getNamespace());
+		currentExtPoint.setBundleId(namespace.getNamespaceBundle().getBundleId());
 
 		// Now populate the the vector just below us on the objectStack with this extension point
 		scratchVectors[EXTENSION_POINT_INDEX].add(currentExtPoint);

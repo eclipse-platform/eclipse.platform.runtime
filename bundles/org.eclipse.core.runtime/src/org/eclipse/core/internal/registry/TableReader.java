@@ -376,7 +376,7 @@ public class TableReader {
 			int size = namespaceInput.readInt();
 			KeyedHashSet result = new KeyedHashSet(size);
 			for (int i = 0; i < size; i++) {
-				Namespace n = new Namespace(namespaceInput.readLong());
+				Contribution n = new Contribution(namespaceInput.readLong());
 				n.setRawChildren(readArray(namespaceInput));
 				result.add(n);
 			}

@@ -141,7 +141,7 @@ public final class HashtableOfStringAndInt implements Cloneable {
 		return s;
 	}
 
-	public int[] getValues() { //TODO we may want to synchronize that or do a copy...
+	public int[] getValues() {
 		int keyTableLength = keyTable.length;
 		int[] result = new int[size()];
 		int j = 0;
@@ -152,7 +152,7 @@ public final class HashtableOfStringAndInt implements Cloneable {
 		return result;
 	}
 
-	public void save(DataOutputStream out) throws IOException {//TODO This probably needs to be synchronized
+	public void save(DataOutputStream out) throws IOException {
 		out.writeInt(elementSize);
 		int tableSize = keyTable.length;
 		out.writeInt(tableSize);

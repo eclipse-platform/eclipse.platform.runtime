@@ -75,7 +75,7 @@ public class RegistryObjectManager {
 		return true;
 	}
 
-	synchronized void addNamespace(Namespace namespace) {
+	synchronized void addNamespace(Contribution namespace) {
 		isDirty = true;
 		newNamespaces.add(namespace);
 	}
@@ -87,22 +87,21 @@ public class RegistryObjectManager {
 			tmp = getFormersNamespaces().getByKey(new Long(id));
 		if (tmp == null)
 			return EMPTY_INT_ARRAY;
-		Namespace namespace = (Namespace) tmp;
+		Contribution namespace = (Contribution) tmp;
 		return namespace.getExtensionPoints();
 	}
 
 	synchronized Set getNamespaces() {
-		//TODO Need to check for fragments
 		KeyedElement[] formerElts;
 		KeyedElement[] newElts;
 		formerElts = getFormersNamespaces().elements();
 		newElts = newNamespaces.elements();
 		Set tmp = new HashSet(formerElts.length + newElts.length);
 		for (int i = 0; i < formerElts.length; i++) {
-			tmp.add(((Namespace) formerElts[i]).getUniqueIdentifier());
+			tmp.add(((Contribution) formerElts[i]).getNamespace());
 		}
 		for (int i = 0; i < newElts.length; i++) {
-			tmp.add(((Namespace) newElts[i]).getUniqueIdentifier());
+			tmp.add(((Contribution) newElts[i]).getNamespace());
 		}
 		return tmp;
 	}
@@ -330,7 +329,7 @@ public class RegistryObjectManager {
 			tmp = getFormersNamespaces().getByKey(new Long(bundleId));
 		if (tmp == null)
 			return EMPTY_INT_ARRAY;
-		return ((Namespace) tmp).getExtensions();
+		return ((Contribution) tmp).getExtensions();
 	}
 
 	synchronized void addExtensionPoint(ExtensionPoint currentExtPoint, boolean hold) {
@@ -340,7 +339,6 @@ public class RegistryObjectManager {
 
 	synchronized void removeExtensionPoint(String extensionPointId) {
 		int pointId = extensionPoints.removeKey(extensionPointId);
-		//TODO Remove from the offset table
 		if (pointId == HashtableOfStringAndInt.MISSING_ELEMENT)
 			return;
 		remove(pointId, true);

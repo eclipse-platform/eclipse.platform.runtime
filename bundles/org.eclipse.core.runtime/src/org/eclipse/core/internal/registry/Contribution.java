@@ -15,9 +15,8 @@ import org.osgi.framework.Bundle;
 
 //This object is used to keep track on a bundle basis of the extension and extension points being contributed.
 //It is mainly used on removal so we can quickly get find objects to remove.
-
-//TODO maybe should this be renamed to something like "Contributions'
-public class Namespace implements KeyedElement {
+//Each contribution is made in the context of a namespace. For a regular bundle, the namespace is the symbolic name of the bundle, whereas for a fragment it is the name of its host.  
+public class Contribution implements KeyedElement {
 	static final int[] EMPTY_CHILDREN = new int[] {0, 0};
 	
 	// The actual bundle contributing the object.
@@ -31,12 +30,12 @@ public class Namespace implements KeyedElement {
 	static final byte EXTENSION_POINT = 0;
 	static final byte EXTENSION = 1;
 	
-	Namespace(Bundle bundle) {
+	Contribution(Bundle bundle) {
 		contributingBundle = bundle;
 		contributingBundleId = bundle.getBundleId();
 	}
 	
-	Namespace(long id) {
+	Contribution(long id) {
 		contributingBundleId = id;
 	}
 	
@@ -64,17 +63,17 @@ public class Namespace implements KeyedElement {
 		return results;
 	}
 
-	String getUniqueIdentifier() {
-//		if (Platform.isFragment(contributingBundle))
-//			return Platform.getHosts(contributingBundle)[0].getSymbolicName();
+	String getNamespace() {
+		if (Platform.isFragment(contributingBundle))
+			return Platform.getHosts(contributingBundle)[0].getSymbolicName();
 		return contributingBundle.getSymbolicName();
 	}
 	
 	public String toString() {
-		return "Namespace: " + getUniqueIdentifier(); //$NON-NLS-1$
+		return "Contribution: "  +  contributingBundle.getBundleId() + " in namespace" +  getNamespace(); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
-	Bundle getHost() {
+	Bundle getNamespaceBundle() {
 		if (Platform.isFragment(contributingBundle)) 
 			return Platform.getHosts(contributingBundle)[0];
 		return contributingBundle;
@@ -90,6 +89,6 @@ public class Namespace implements KeyedElement {
 	}
 	
 	public boolean compare(KeyedElement other) {
-		return contributingBundle == ((Namespace) other).contributingBundle;
+		return contributingBundle == ((Contribution) other).contributingBundle;
 	}
 }

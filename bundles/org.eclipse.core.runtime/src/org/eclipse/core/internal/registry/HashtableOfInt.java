@@ -114,7 +114,7 @@ public final class HashtableOfInt {
 		return s;
 	}
 
-	public void save(DataOutputStream out) throws IOException {//TODO This probably needs to be synchronized
+	public void save(DataOutputStream out) throws IOException {
 		out.writeInt(elementSize);
 		int tableSize = keyTable.length;
 		out.writeInt(tableSize);
