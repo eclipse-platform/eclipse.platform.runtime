@@ -21,18 +21,21 @@ import org.osgi.framework.Bundle;
  * in a plug-in manifest.
  */
 public class ConfigurationElement extends NestedRegistryModelObject {
+	private static final byte parentExtensionMask = 0x0001;
+	private static final byte hasValueMask = 0x0002;
+	
 	static final ConfigurationElement[] EMPTY_ARRAY = new ConfigurationElement[0];
 	private static final int PLUGIN_ERROR = 1;
 
 	//The id of the parent element. It can be a configuration element or an extension
 	int parentId;
-	byte parentType; //This value is only interesting when running from cache.
+	byte info; //this contains info such as the parentType and the presence of a value 
 
 	//Store the properties and the value of the configuration element.
 	//The format is the following: 
-	//	[p1, v1, p2, v2, configurationElementValue]
-	//If the array size is even, there is no "configurationElementValue (ie getValue returns null)".
-	//The properties and their values are alternated (v1 is the value of p1). 
+	//	[p1, v1, p2, v2, configurationElementValue, configurationElementValueAsIs]
+	//The properties and their values are alternated (v1 is the value of p1).
+	//If a configuration element value exists it is indicated in the info field.
 	private String[] propertiesAndValue;
 
 	//The name of the configuration element
@@ -47,7 +50,7 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 		//Nothing to do
 	}
 
-	ConfigurationElement(int self, Bundle bundle, String name, String[] propertiesAndValue2, int[] children, int misc, int parent, byte parentType) {
+	ConfigurationElement(int self, Bundle bundle, String name, String[] propertiesAndValue2, int[] children, int misc, int parent, byte info) {
 		setObjectId(self);
 		contributingBundle = bundle;
 		this.name = name;
@@ -55,7 +58,7 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 		setRawChildren(children);
 		extraDataOffset = misc;
 		parentId = parent;
-		this.parentType = parentType;
+		this.info = info;
 	}
 
 	Object createExecutableExtension(String attributeName) throws CoreException {
@@ -235,19 +238,38 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 	String[] getPropertiesAndValue() {
 		return propertiesAndValue;
 	}
-
+	
+	void setValueAsIs(String value) {
+		if (propertiesAndValue.length == 0) {
+			setValueBit();
+			propertiesAndValue = new String[] { null, value };
+			return;
+		}
+		if (! hasValue() ) {
+			setValueBit();
+			String[] newPropertiesAndValue = new String[propertiesAndValue.length + 2];
+			System.arraycopy(propertiesAndValue, 0, newPropertiesAndValue, 0, propertiesAndValue.length);
+			newPropertiesAndValue[newPropertiesAndValue.length] = value;
+			propertiesAndValue = newPropertiesAndValue;
+			return;
+		}
+		propertiesAndValue[propertiesAndValue.length - 1] = value; 
+	}
+	
 	void setValue(String value) {
 		if (propertiesAndValue.length == 0) {
-			propertiesAndValue = new String[] {value};
+			setValueBit();
+			propertiesAndValue = new String[] { null, value };
 			return;
 		}
-		if (propertiesAndValue.length % 2 == 1) {
-			propertiesAndValue[propertiesAndValue.length - 1] = value;
+		if ( hasValue() ) {
+			propertiesAndValue[propertiesAndValue.length - 2] = value; 
 			return;
 		}
-		String[] newPropertiesAndValue = new String[propertiesAndValue.length + 1];
+		setValueBit();
+		String[] newPropertiesAndValue = new String[propertiesAndValue.length + 2];
 		System.arraycopy(propertiesAndValue, 0, newPropertiesAndValue, 0, propertiesAndValue.length);
-		newPropertiesAndValue[propertiesAndValue.length] = value;
+		newPropertiesAndValue[newPropertiesAndValue.length - 1] = value;
 		propertiesAndValue = newPropertiesAndValue;
 	}
 
@@ -294,8 +316,22 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 		this.name = name;
 	}
 
-	void setParentType(byte type) {
-		parentType = type;
+	//true to indicate an extension , false for a configuration element
+	void setParentType(boolean extension) {
+		if (extension)
+			info = (byte) (info | parentExtensionMask);
+	}
+
+	boolean isParentExtension() {
+		return (info & parentExtensionMask) == parentExtensionMask;
+	}
+	
+	private boolean hasValue() {
+		return (info & hasValueMask) == hasValueMask;
+	}
+	
+	private void setValueBit() {
+		info = (byte) (info | hasValueMask);
 	}
 	
 	String getNamespace() {

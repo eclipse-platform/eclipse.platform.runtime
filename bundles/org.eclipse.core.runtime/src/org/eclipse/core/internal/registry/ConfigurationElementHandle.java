@@ -83,7 +83,7 @@ public class ConfigurationElementHandle extends Handle implements IConfiguration
 
 	public Object getParent() {
 		ConfigurationElement actualCe = getConfigurationElement();
-		return objectManager.getHandle(actualCe.parentId, actualCe.parentType);
+		return objectManager.getHandle(actualCe.parentId, actualCe.isParentExtension() ? RegistryObjectManager.EXTENSION : RegistryObjectManager.CONFIGURATION_ELEMENT);
 	}
 
 	public String getValue() {

@@ -175,7 +175,7 @@ public class TableWriter {
 		currentOutput.writeLong(actualCe.getContributingBundle().getBundleId());
 		writeStringOrNull(actualCe.getName(), currentOutput);
 		currentOutput.writeInt(actualCe.parentId);
-		currentOutput.writeByte(actualCe.parentType);
+		currentOutput.writeByte(actualCe.info);
 		currentOutput.writeInt(depth > 1 ? extraOutputStream.size() : -1);
 		writeStringArray(actualCe.getPropertiesAndValue(), currentOutput);
 		//save the children

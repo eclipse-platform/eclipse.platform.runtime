@@ -154,9 +154,12 @@ public class ExtensionsParser extends DefaultHandler {
 			String value = new String(ch, start, length);
 			String oldValue = currentConfigElement.getValueAsIs();
 			if (oldValue == null) {
-				if (value.trim().length() != 0)
+				if (value.trim().length() != 0) {
+					currentConfigElement.setValueAsIs(value);
 					currentConfigElement.setValue(translate(value));
+				}
 			} else {
+				currentConfigElement.setValueAsIs(oldValue + value);
 				currentConfigElement.setValue(translate(oldValue + value));
 			}
 		}
@@ -240,7 +243,7 @@ public class ExtensionsParser extends DefaultHandler {
 				newValues[size] = currentConfigElement.getObjectId();
 				parent.setRawChildren(newValues);
 				currentConfigElement.setParentId(parent.getObjectId());
-				currentConfigElement.setParentType(parent instanceof ConfigurationElement ? RegistryObjectManager.CONFIGURATION_ELEMENT : RegistryObjectManager.EXTENSION);
+				currentConfigElement.setParentType(parent instanceof ConfigurationElement ? false : true);
 				break;
 		}
 	}
