@@ -115,6 +115,135 @@ public final class InternalBootLoader {
 	private static final String NL = "-nl";
 
 /**
+ * Element selector for use with "tiny" parser. Parser callers supply 
+ * concrete selectors
+ */	
+public interface Selector {
+	
+	/**
+	 * Method is called to pre-select a specific xml type. Pre-selected
+	 * elements are then fully parsed and result in calls to full
+	 * select method.
+	 * @return <code>true</code> is the element should be considered,
+	 * <code>false</code> otherwise
+	 */
+	public boolean select(String entry);
+	
+	/**
+	 * Method is called with a fully parsed element.
+	 * @return <code>true</code> to select this element and terminate the parse,
+	 * <code>false</code> otherwise
+	 */
+	public boolean select(String element, HashMap attributes);
+}
+
+/**
+ * "Tiny" xml parser. Performs a rudimentary parse of a well-formed xml file.
+ * Is specifically geared to parsing plugin.xml files of "bootstrap" plug-ins
+ * during the platform startup sequence before full xml plugin is available.
+ */
+public class Parser {
+	
+	ArrayList elements = new ArrayList();
+	
+	/**
+	 * 
+	 */
+	public Parser(File file) {
+		load(file);	
+	}
+	
+	/**
+	 * 
+	 */
+	public HashMap getElement(Selector selector) {
+		if (selector == null)
+			return null;
+			
+		int result;
+		String element;
+		for (int i=0; i<elements.size(); i++) {
+			// make pre-parse selector call
+			element = (String)elements.get(i);
+			if (selector.select(element)) {
+				// parse selected entry
+				HashMap attributes = new HashMap();
+				String elementName;
+				int j;
+				// parse out element name
+				for (j = 0; j<element.length(); j++) {
+					if (Character.isWhitespace(element.charAt(j)))
+						break;
+				}
+				if (j>=element.length()) {
+					elementName = element;
+				} else {
+					elementName = element.substring(0,j);
+					element = element.substring(j);
+					// parse out attributes
+					StringTokenizer t = new StringTokenizer(element,"=\"");
+					boolean isKey = true;
+					String key = "";
+					while(t.hasMoreTokens()) {
+						String token = t.nextToken().trim();
+						if (!token.equals("")) {
+							// collect (key, value) pairs
+							if (isKey) {
+								key = token;
+								isKey = false;
+							} else {
+								attributes.put(key, token);
+								isKey = true;
+							}
+						}
+					}
+				}
+				// make post-parse selector call
+				if (selector.select(elementName, attributes)) {
+					attributes.put("<element>", elementName);
+					return attributes;
+				}
+			}			
+		}			
+		return null;
+	}
+	
+	private void load(File file) {	
+		if (!file.exists())
+			return;		
+			
+		// read file	
+		StringBuffer xml = new StringBuffer(4096);
+		char[] iobuf = new char[4096];
+		FileReader r = null;
+		try {
+			r = new FileReader(file);
+			int len = r.read(iobuf, 0, iobuf.length);
+			while (len != -1) {
+				xml.append(iobuf, 0, len);
+				len = r.read(iobuf, 0, iobuf.length);
+			}
+		} catch (Exception e) {
+			return;
+		} finally {
+			if (r != null) try {
+				r.close();
+			} catch (IOException e) {
+			}
+		}
+		
+		// parse out element tokens	
+		String xmlString = xml.toString();
+		StringTokenizer t = new StringTokenizer(xmlString,"<>");	
+		while(t.hasMoreTokens()) {
+			String token = t.nextToken().trim();
+			if (!token.equals(""))
+				elements.add(token);
+		}
+	}
+}
+
+/**
  * Private constructor to block instance creation.
  */
 private InternalBootLoader() {
