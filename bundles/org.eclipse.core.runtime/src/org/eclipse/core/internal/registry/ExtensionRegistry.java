@@ -163,7 +163,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	private transient ListenerList listeners = new ListenerList();
 
 	// extensions without extension point
-	private Map orphanExtensions = new HashMap(11);
+//	private Map orphanExtensions = new HashMap(11);
 
 	private RegistryObjectManager registryObjects;
 
@@ -215,17 +215,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		ExtensionPoint extPoint = registryObjects.getExtensionPointObject(extensionPointToAddTo);
 		//orphan extension
 		if (extPoint == null) {
-			// are there any other orphan extensions
-			int[] existingOrphanExtensions = (int[]) orphanExtensions.get(extensionPointToAddTo);
-			if (existingOrphanExtensions != null) {
-				// just add
-				int[] newOrphanExtensions = new int[existingOrphanExtensions.length + 1];
-				System.arraycopy(existingOrphanExtensions, 0, newOrphanExtensions, 0, existingOrphanExtensions.length);
-				newOrphanExtensions[newOrphanExtensions.length - 1] = extension;
-				orphanExtensions.put(extensionPointToAddTo, newOrphanExtensions);
-			} else
-				// otherwise this is the first one
-				orphanExtensions.put(extensionPointToAddTo, new int[] {extension});
+			registryObjects.addOrphan(extensionPointToAddTo, extension);
 			return;
 		}
 		// otherwise, link them
@@ -244,7 +234,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	 */
 	private void addExtensionPoint(int extPoint) {
 		ExtensionPoint extensionPoint = (ExtensionPoint) registryObjects.getObject(extPoint, RegistryObjectManager.EXTENSION_POINT);
-		int[] orphans = (int[]) orphanExtensions.remove(extensionPoint.getUniqueIdentifier());
+		int[] orphans = registryObjects.removeOrphans(extensionPoint.getUniqueIdentifier());
 		if (orphans == null)
 			return;
 		// otherwise, link them
@@ -617,18 +607,9 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		String xptName = extension.getExtensionPointIdentifier();
 		ExtensionPoint extPoint = registryObjects.getExtensionPointObject(xptName);
 		if (extPoint == null) {
-			// not found - maybe it was an orphan extension
-			int[] existingOrphanExtensions = (int[]) orphanExtensions.get(xptName);
-			if (existingOrphanExtensions == null)
-				// nope, this extension is unknown
+			boolean removed = registryObjects.removeOrphan(xptName, extensionId);
+			if (! removed)
 				return;
-			// yes, so just remove it from the orphans list
-			int[] newOrphanExtensions = new int[existingOrphanExtensions.length - 1];
-			for (int i = 0, j = 0; i < existingOrphanExtensions.length; i++)
-				if (extension.getObjectId() != existingOrphanExtensions[i])
-					newOrphanExtensions[j++] = existingOrphanExtensions[i];
-			orphanExtensions.put(xptName, newOrphanExtensions);
-			return;
 		}
 		// otherwise, unlink the extension from the extension point
 		int[] existingExtensions = extPoint.getRawChildren();
@@ -654,7 +635,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			return;
 		}
 		//Remove the extension point from the registry object
-		orphanExtensions.put(extensionPoint.getUniqueIdentifier(), existingExtensions);
+		registryObjects.addOrphans(extensionPoint.getUniqueIdentifier(), existingExtensions);
 		link(extensionPoint, null);
 		recordChange(extensionPoint, existingExtensions, IExtensionDelta.REMOVED);
 	}
@@ -724,6 +705,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 					TableReader.setExtraDataFile(currentFileManager.lookup(TableReader.EXTRA, false));
 					TableReader.setMainDataFile(currentFileManager.lookup(TableReader.MAIN, false));
 					TableReader.setNamespaceFile(currentFileManager.lookup(TableReader.NAMESPACE, false));
+					TableReader.setOrphansFile(currentFileManager.lookup(TableReader.ORPHANS, false));
 					fromCache = registryObjects.init(computeRegistryStamp());
 				} catch (IOException e) {
 					// Ignore the exception. The registry will be rebuilt from the xml files.
@@ -776,25 +758,29 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		File mainFile = null;
 		File extraFile = null;
 		File namespaceFile = null;
+		File orphansFile = null;
 		try {
 			manager.lookup(TableReader.TABLE, true);
 			manager.lookup(TableReader.MAIN, true);
 			manager.lookup(TableReader.EXTRA, true);
 			manager.lookup(TableReader.NAMESPACE, true);
+			manager.lookup(TableReader.ORPHANS, true);
 			tableFile = File.createTempFile(TableReader.TABLE, ".new", manager.getBase()); //$NON-NLS-1$
 			mainFile = File.createTempFile(TableReader.MAIN, ".new", manager.getBase()); //$NON-NLS-1$
 			extraFile = File.createTempFile(TableReader.EXTRA, ".new", manager.getBase()); //$NON-NLS-1$
 			namespaceFile = File.createTempFile(TableReader.NAMESPACE, ".new", manager.getBase()); //$NON-NLS-1$
+			orphansFile = File.createTempFile(TableReader.ORPHANS, ".new", manager.getBase()); //$NON-NLS-1$
 			TableWriter.setTableFile(tableFile);
 			TableWriter.setExtraDataFile(extraFile);
 			TableWriter.setMainDataFile(mainFile);
 			TableWriter.setNamespaceFile(namespaceFile);
+			TableWriter.setOrphansFile(orphansFile);
 		} catch (IOException e) {
 			return; //Ignore the exception since we can recompute the cache
 		}
 		try {
 			if (new TableWriter().saveCache(registryObjects, computeRegistryStamp()))
-				manager.update(new String[] {TableReader.TABLE, TableReader.MAIN, TableReader.EXTRA, TableReader.NAMESPACE}, new String[] {tableFile.getName(), mainFile.getName(), extraFile.getName(), namespaceFile.getName()});
+				manager.update(new String[] {TableReader.TABLE, TableReader.MAIN, TableReader.EXTRA, TableReader.NAMESPACE, TableReader.ORPHANS}, new String[] {tableFile.getName(), mainFile.getName(), extraFile.getName(), namespaceFile.getName(), orphansFile.getName()});
 		} catch (IOException e) {
 			//Ignore the exception since we can recompute the cache
 		}

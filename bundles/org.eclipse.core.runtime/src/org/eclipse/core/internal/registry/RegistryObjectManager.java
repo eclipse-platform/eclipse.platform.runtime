@@ -11,6 +11,7 @@
 package org.eclipse.core.internal.registry;
 
 import java.lang.ref.SoftReference;
+import java.util.*;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -42,9 +43,10 @@ public class RegistryObjectManager {
 
 	//Those two data structures are only used when the addition or the removal of a plugin occurs.
 	//They are used to keep track on a bundle basis of the extension being added or removed
-	KeyedHashSet newNamespaces; //represents the namespaces added and removed during this session.
-	private Object formerNamespaces; //represents the namespaces encountered in previous sessions. This is loaded lazily
-
+	KeyedHashSet newContributions; //represents the bundles added and removed during this session.
+	private Object formerContributions; //represents the bundles encountered in previous sessions. This is loaded lazily.
+	Object orphanExtensions;
+	
 	private KeyedHashSet heldObjects = new KeyedHashSet(); //strong reference to the objects that must be hold on to
 
 	//Indicate if objects have been removed or added from the table. This only needs to be set in a couple of places (addNamespace and removeNamespace)
@@ -56,9 +58,9 @@ public class RegistryObjectManager {
 		Handle.objectManager = this;
 		extensionPoints = new HashtableOfStringAndInt();
 		cache = new ReferenceMap(ReferenceMap.HARD, ReferenceMap.SOFT);
-		newNamespaces = new KeyedHashSet();
+		newContributions = new KeyedHashSet();
 	}
-
+	
 	/**
 	 * Initialize the object manager. Return true if the initialization succeeded, false otherwise
 	 */
@@ -77,14 +79,14 @@ public class RegistryObjectManager {
 
 	synchronized void addNamespace(Contribution namespace) {
 		isDirty = true;
-		newNamespaces.add(namespace);
+		newContributions.add(namespace);
 	}
 
 	synchronized int[] getExtensionPointsFrom(long id) {
 		KeyedElement tmp;
-		tmp = newNamespaces.getByKey(new Long(id));
+		tmp = newContributions.getByKey(new Long(id));
 		if (tmp == null)
-			tmp = getFormersNamespaces().getByKey(new Long(id));
+			tmp = getFormerContributions().getByKey(new Long(id));
 		if (tmp == null)
 			return EMPTY_INT_ARRAY;
 		Contribution namespace = (Contribution) tmp;
@@ -94,8 +96,8 @@ public class RegistryObjectManager {
 	synchronized Set getNamespaces() {
 		KeyedElement[] formerElts;
 		KeyedElement[] newElts;
-		formerElts = getFormersNamespaces().elements();
-		newElts = newNamespaces.elements();
+		formerElts = getFormerContributions().elements();
+		newElts = newContributions.elements();
 		Set tmp = new HashSet(formerElts.length + newElts.length);
 		for (int i = 0; i < formerElts.length; i++) {
 			tmp.add(((Contribution) formerElts[i]).getNamespace());
@@ -107,21 +109,21 @@ public class RegistryObjectManager {
 	}
 
 	synchronized boolean hasNamespace(long id) {
-		Object result = newNamespaces.getByKey(new Long(id));
+		Object result = newContributions.getByKey(new Long(id));
 		if (result == null) 
-			result = getFormersNamespaces().getByKey(new Long(id));
+			result = getFormerContributions().getByKey(new Long(id));
 		return result != null;
 	}
 	
-	private KeyedHashSet getFormersNamespaces() {
+	private KeyedHashSet getFormerContributions() {
 		KeyedHashSet result;
 		if (fromCache == false)
 			return new KeyedHashSet(0);
 		
-		if (formerNamespaces == null || (result = ((KeyedHashSet)( (formerNamespaces instanceof SoftReference) ? ((SoftReference)formerNamespaces).get() : formerNamespaces))) == null) {
+		if (formerContributions == null || (result = ((KeyedHashSet)( (formerContributions instanceof SoftReference) ? ((SoftReference)formerContributions).get() : formerContributions))) == null) {
 			TableReader reader = new TableReader();
 			result = reader.loadNamespaces();
-			formerNamespaces = new SoftReference(result);
+			formerContributions = new SoftReference(result);
 		}
 		return result;
 	}
@@ -324,9 +326,9 @@ public class RegistryObjectManager {
 	}
 
 	synchronized public int[] getExtensionsFrom(long bundleId) {
-		KeyedElement tmp = newNamespaces.getByKey(new Long(bundleId));
+		KeyedElement tmp = newContributions.getByKey(new Long(bundleId));
 		if (tmp == null)
-			tmp = getFormersNamespaces().getByKey(new Long(bundleId));
+			tmp = getFormerContributions().getByKey(new Long(bundleId));
 		if (tmp == null)
 			return EMPTY_INT_ARRAY;
 		return ((Contribution) tmp).getExtensions();
@@ -349,11 +351,11 @@ public class RegistryObjectManager {
 	}
 
 	synchronized void removeNamespace(long bundleId) {
-		boolean removed = newNamespaces.removeByKey(new Long(bundleId));
+		boolean removed = newContributions.removeByKey(new Long(bundleId));
 		if (removed == false) {
-			removed = getFormersNamespaces().removeByKey(new Long(bundleId));
+			removed = getFormerContributions().removeByKey(new Long(bundleId));
 			if (removed)
-				formerNamespaces = getFormersNamespaces();	//This forces the removed namespace to stay around, so we do not forget about removed namespaces
+				formerContributions = getFormerContributions();	//This forces the removed namespace to stay around, so we do not forget about removed namespaces
 		}
 
 		if (removed) {
@@ -361,5 +363,94 @@ public class RegistryObjectManager {
 			return;
 		}
 
+	}
+	
+	private Map getOrphans() {
+		Object result = orphanExtensions;
+		if (orphanExtensions == null && !fromCache) {
+			result = new HashMap();
+			orphanExtensions = result;
+		} else if (orphanExtensions == null || (result = ((HashMap)( (orphanExtensions instanceof SoftReference) ? ((SoftReference) orphanExtensions).get() : orphanExtensions))) == null) {
+			TableReader reader = new TableReader();
+			result = reader.loadOrphans();
+			orphanExtensions = new SoftReference(result);
+		}
+		return (HashMap) result;
+	}
+	
+	void addOrphans(String extensionPoint, int[] extensions) {
+		Map orphans = getOrphans();
+		int[] existingOrphanExtensions = (int[]) orphans.get(extensionPoint);
+		
+		if (existingOrphanExtensions != null) {
+			// just add
+			int[] newOrphanExtensions = new int[existingOrphanExtensions.length + extensions.length];
+			System.arraycopy(existingOrphanExtensions, 0, newOrphanExtensions, 0, existingOrphanExtensions.length);
+			System.arraycopy(extensions, 0, newOrphanExtensions, existingOrphanExtensions.length, extensions.length);
+			orphans.put(extensionPoint, newOrphanExtensions);
+		} else {
+			// otherwise this is the first one
+			orphans.put(extensionPoint, extensions);
+		}
+		markOrphansHasDirty(orphans);
+		return;
+	}
+
+	private void markOrphansHasDirty(Map orphans) {
+		orphanExtensions = orphans;
+	}
+	
+	void addOrphan(String extensionPoint, int extension) {
+		Map orphans = getOrphans();
+		int[] existingOrphanExtensions = (int[]) orphans.get(extensionPoint);
+
+		if (existingOrphanExtensions != null) {
+			// just add
+			int[] newOrphanExtensions = new int[existingOrphanExtensions.length + 1];
+			System.arraycopy(existingOrphanExtensions, 0, newOrphanExtensions, 0, existingOrphanExtensions.length);
+			newOrphanExtensions[existingOrphanExtensions.length] = extension;
+			orphans.put(extensionPoint, newOrphanExtensions);
+		} else {
+			// otherwise this is the first one
+			orphans.put(extensionPoint, new int[] {extension});
+		}
+		markOrphansHasDirty(orphans);
+		return;
+	}
+	
+	int[] getOrphans(String extensionPoint) {
+		return (int[]) getOrphans().get(extensionPoint);
+	}
+	
+	int[] removeOrphans(String extensionPoint) {
+		Map orphans = getOrphans();
+		int[] existingOrphanExtensions = (int[]) orphans.remove(extensionPoint);
+		if (existingOrphanExtensions != null) {
+			markOrphansHasDirty(orphans);
+		}
+		return existingOrphanExtensions;
+	}
+	
+	boolean removeOrphan(String extensionPoint, int extension) {
+		Map orphans = getOrphans();
+		int[] existingOrphanExtensions = (int[]) orphans.get(extensionPoint);
+		
+		if (existingOrphanExtensions == null)
+			return false;
+		
+		markOrphansHasDirty(orphans);
+		int newSize = existingOrphanExtensions.length - 1;
+		if (newSize == 0) {
+			orphans.remove(extensionPoint);
+			return true;
+		}
+		
+		int[] newOrphanExtensions = new int[existingOrphanExtensions.length - 1];
+		for (int i = 0, j = 0; i < existingOrphanExtensions.length; i++)
+			if (extension != existingOrphanExtensions[i])
+				newOrphanExtensions[j++] = existingOrphanExtensions[i];
+		
+		orphans.put(extensionPoint, newOrphanExtensions);
+		return true;
 	}
 }

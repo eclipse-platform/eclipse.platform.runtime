@@ -11,6 +11,9 @@
 package org.eclipse.core.internal.registry;
 
 import java.io.*;
+import java.util.*;
+import java.util.HashMap;
+import java.util.Set;
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.runtime.*;
 
@@ -21,7 +24,8 @@ public class TableWriter {
 	static File extraDataFile;
 	static File tableFile;
 	static File namespaceFile;
-
+	static File orphansFile;
+	
 	static void setMainDataFile(File main) {
 		mainDataFile = main;
 	}
@@ -38,6 +42,10 @@ public class TableWriter {
 		namespaceFile = namespace;
 	}
 
+	static void setOrphansFile(File orphan) {
+		orphansFile = orphan;
+	}
+	
 	DataOutputStream mainOutput;
 	DataOutputStream extraOutput;
 
@@ -87,7 +95,8 @@ public class TableWriter {
 		}
 		saveTables(objectManager, timestamp);
 
-		saveNamespaces(objectManager.newNamespaces);
+		saveNamespaces(objectManager.newContributions);
+		saveOrphans((HashMap) objectManager.orphanExtensions);
 	}
 
 	private void saveNamespaces(KeyedHashSet newNamespaces) throws IOException {
@@ -224,4 +233,15 @@ public class TableWriter {
 		}
 	}
 
+	private void saveOrphans(HashMap orphans) throws IOException {
+		DataOutputStream outputOrphan = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(orphansFile)));
+		outputOrphan.writeInt(orphans.size());
+		Set elements = orphans.entrySet();
+		for (Iterator iter = elements.iterator(); iter.hasNext();) {
+			Map.Entry entry = (Map.Entry) iter.next();
+			outputOrphan.writeUTF((String) entry.getKey());
+			saveArray((int[]) entry.getValue(), outputOrphan);
+		}
+		outputOrphan.close();
+	}
 }

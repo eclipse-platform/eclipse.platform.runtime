@@ -11,6 +11,7 @@
 package org.eclipse.core.internal.registry;
 
 import java.io.*;
+import java.util.HashMap;
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.runtime.*;
 import org.osgi.framework.Bundle;
@@ -43,6 +44,10 @@ public class TableReader {
 	static final String NAMESPACE = ".namespace"; //$NON-NLS-1$
 	static File namespaceFile;
 
+	//The orphan file
+	static final String ORPHANS = ".orphans"; //$NON-NLS-1$
+	static File orphansFile;
+
 	//Status code
 	private static final byte fileError = 0;
 	private static final boolean DEBUG = false;
@@ -61,6 +66,10 @@ public class TableReader {
 
 	static void setNamespaceFile(File namespace) {
 		namespaceFile = namespace;
+	}
+
+	static void setOrphansFile(File orphan) {
+		orphansFile = orphan;
 	}
 
 	public TableReader() {
@@ -178,7 +187,7 @@ public class TableReader {
 		int misc = is.readInt();//this is set in second level CEs, to indicate where in the extra data file the children ces are
 		String[] propertiesAndValue = readPropertiesAndValue(is);
 		int[] children = readArray(is);
-			actualContributingBundle = getBundle(contributingBundle);
+		actualContributingBundle = getBundle(contributingBundle);
 		return new ConfigurationElement(self, actualContributingBundle, name, propertiesAndValue, children, misc, parentId, parentType);
 	}
 
@@ -329,7 +338,7 @@ public class TableReader {
 	}
 
 	private String[] basicLoadExtensionExtraData() throws IOException {
-		return new String[] { readStringOrNull(extraInput, false), readStringOrNull(extraInput, false) };
+		return new String[] {readStringOrNull(extraInput, false), readStringOrNull(extraInput, false)};
 	}
 
 	public String[] loadExtensionPointExtraData(int offset) {
@@ -409,6 +418,22 @@ public class TableReader {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error while reading the whole cache", e));
 		}
 		return null;
+	}
+
+	public HashMap loadOrphans() {
+		try {
+			DataInputStream orphanInput = new DataInputStream(new BufferedInputStream(new FileInputStream(orphansFile)));
+			int size = orphanInput.readInt();
+			HashMap result = new HashMap(size);
+			for (int i = 0; i < size; i++) {
+				String key = orphanInput.readUTF();
+				int[] value = readArray(orphanInput);
+				result.put(key, value);
+			}
+			return result;
+		} catch (IOException e) {
+			return null;
+		}
 	}
 
 }
