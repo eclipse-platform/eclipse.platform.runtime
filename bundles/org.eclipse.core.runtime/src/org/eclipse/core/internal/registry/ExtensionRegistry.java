@@ -502,7 +502,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 				Extension[] exts = (Extension[]) registryObjects.getObjects(registryObjects.getExtensionsFrom(correspondingBundles[i].getBundleId()), RegistryObjectManager.EXTENSION);
 				for (int j = 0; j < exts.length; j++) {
 					if (registryObjects.getExtensionPointObject(exts[j].getExtensionPointIdentifier()) != null)
-						tmp.add(registryObjects.getHandle(exts[i].getObjectId(), RegistryObjectManager.EXTENSION));
+						tmp.add(registryObjects.getHandle(exts[j].getObjectId(), RegistryObjectManager.EXTENSION));
 				}
 			}
 			if (tmp.size() == 0)
