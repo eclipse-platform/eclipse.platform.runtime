@@ -325,12 +325,11 @@ public class RegistryObjectManager {
 	}
 
 	synchronized public int[] getExtensionsFrom(long bundleId) {
-		//TODO This needs to collect extension points for fragments 
 		KeyedElement tmp = newNamespaces.getByKey(new Long(bundleId));
 		if (tmp == null)
 			tmp = getFormersNamespaces().getByKey(new Long(bundleId));
 		if (tmp == null)
-			return null;
+			return EMPTY_INT_ARRAY;
 		return ((Namespace) tmp).getExtensions();
 	}
 
