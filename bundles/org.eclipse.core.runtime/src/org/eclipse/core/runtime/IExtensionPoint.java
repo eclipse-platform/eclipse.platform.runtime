@@ -40,8 +40,15 @@ public interface IExtensionPoint {
 	 */
 	public IPluginDescriptor getDeclaringPluginDescriptor();
 
-	//TODO Add JavaDoc
 	//TODO Add a method returning the long ?
+	/**
+	 * Returns the identifier of the parent of this extension point.  This value can be used
+	 * in various global facilities to discover the actual parent.
+	 * 
+	 * @return the idenifier of the parent
+	 * @see Plarform.getBundle(String)
+	 * @since 3.0
+	 */
 	public String getParentIdentifier();
 	/**
 	 * Returns the extension with the given unique identifier configured into

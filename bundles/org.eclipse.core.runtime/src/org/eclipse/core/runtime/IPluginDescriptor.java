@@ -39,7 +39,7 @@ public interface IPluginDescriptor {
 	 *
 	 * @param extensionName the simple identifier of the extension (e.g. <code>"main"</code>).
 	 * @return the extension, or <code>null</code>
-	 * @deprecated: Use {@link org.eclipse.core.runtime.registry.IExtensionRegistry#getExtension(String indentifier, String extensionName) IExtensionRegistry#getExtension}
+	 * @deprecated: Use {@link IExtensionRegistry#getExtension(String indentifier, String extensionName) IExtensionRegistry#getExtension}
 	 */
 	public IExtension getExtension(String extensionName);
 	/**
@@ -48,7 +48,7 @@ public interface IPluginDescriptor {
 	 *
 	 * @param extensionPointId the simple identifier of the extension point (e.g. <code>"wizard"</code>).
 	 * @return the extension point, or <code>null</code>
-	 * @deprecated  Use {@link org.eclipse.core.runtime.registry.IExtensionRegistry#getExtensionPoint(String elementId, String extensionPointName) IExtensionRegistry#getExtensionPoint(String elementId, String extensionPointName)}
+	 * @deprecated  Use {@link IExtensionRegistry#getExtensionPoint(String elementId, String extensionPointName) IExtensionRegistry#getExtensionPoint(String elementId, String extensionPointName)}
 	 */
 	public IExtensionPoint getExtensionPoint(String extensionPointId);
 	/**
@@ -56,7 +56,7 @@ public interface IPluginDescriptor {
 	 * Returns an empty array if this plug-in does not declare any extension points.
 	 *
 	 * @return the extension points declared by this plug-in
-	 * @deprecated Use {@link org.eclipse.core.runtime.registry.IExtensionRegistry#getExtensionPoints() IExtensionRegistry#getExtensionPoints()}  
+	 * @deprecated Use {@link IExtensionRegistry#getExtensionPoints() IExtensionRegistry#getExtensionPoints()}  
 	 */
 	public IExtensionPoint[] getExtensionPoints();
 	/**
@@ -64,7 +64,7 @@ public interface IPluginDescriptor {
 	 * Returns an empty array if this plug-in does not declare any extensions.
 	 *
 	 * @return the extensions declared by this plug-in
-	 * @deprecated Use {@link org.eclipse.core.runtime.registry.IExtensionRegistry#getExtensions(String) IExtensionRegistry#getExtensions(String)}
+	 * @deprecated Use {@link IExtensionRegistry#getExtensions(String) IExtensionRegistry#getExtensions(String)}
 	 */
 	public IExtension[] getExtensions();
 	/**
@@ -81,6 +81,7 @@ public interface IPluginDescriptor {
 	 * @deprecated This method is no longer available. To access the content of 
 	 * your plugin's install directory, use the {@link org.osgi.framework.Bundle#getEntry(String) Bundle#getEntry(String)}
 	 */
+	// TODO need a insulator for this on Platform
 	public URL getInstallURL();
 	/**
 	 * Returns a displayable label for this plug-in.
@@ -95,6 +96,7 @@ public interface IPluginDescriptor {
 	 * @see #getResourceString 
 	 * @deprecated Use {@link org.osgi.framework.Bundle#getHeaders() Bundle.getHeaders().get(org.osgi.framework.Constants#BUNDLE_NAME)}
 	 */
+	// TODO need a insulator for this on Platform.  it should do the translation for us
 	public String getLabel();
 	/**
 	 * Returns the plug-in runtime object corresponding to this
@@ -150,10 +152,11 @@ public interface IPluginDescriptor {
 	 * @see IConfigurationElement#createExecutableExtension
 	 * @see #isPluginActivated
 	 * @see #getResourceBundle
-	 * @deprecated Do to obvious security reasons, this API is no longer available.
+	 * @deprecated Due to obvious security reasons, this API is no longer available.
 	 * Instead you should consider using the{@link org.osgi.framework.Bundle#loadClass(String) Bundle#loadClass(String)}.
 	 * Please see the porting guide for an enhanced description of how code using this feature can be reorganized. 
 	 */
+	// TODO need a insulator for this on Platform
 	public ClassLoader getPluginClassLoader();
 	/**
 	* Returns a list of plug-in prerequisites required
@@ -162,7 +165,7 @@ public interface IPluginDescriptor {
 	* @return an array of plug-in prerequisites, or an empty array
 	* if no prerequisites were specified
 	* @deprecated The concept of prerequisite has been refined into two new concepts.
-	* Import of packages and Requirement of bundles. See the porting guide presenting the new
+	* Import of packages and the requiring of bundles. See the porting guide presenting the new
 	* concepts for an in depth discussion. Note that the IPluginPrerequisite class is also deprecated.
 	* The import information can be obtained using {@link org.osgi.framework.Bundle#getHeaders() Bundle.getHeaders().get(org.osgi.framework.Constants#IMPORT_PACKAGE)},
 	* the requirement information using {@link org.osgi.framework.Bundle#getHeaders() Bundle.getHeaders().get(org.osgi.framework.Constants#REQUIRE_BUNDLE)}).
@@ -181,6 +184,7 @@ public interface IPluginDescriptor {
 	 * @return the name of the provider, possibly the empty string
 	 * @deprecated Use {@link org.osgi.framework.Bundle#getHeaders() Bundle.getHeaders().get(org.osgi.framework.Constants#BUNDLE_VENDOR)}
 	 */
+// TODO need a insulator for this on Platform.  It shoudl do the translation for us
 	public String getProviderName();
 	/**
 	 * Returns this plug-in's resource bundle for the current locale. 
@@ -193,6 +197,7 @@ public interface IPluginDescriptor {
 	 *
 	 * @return the resource bundle
 	 * @exception MissingResourceException if the resource bundle was not found
+	 * @deprecated Use {@link Platform#getResourceBundle() Platform#getResourceBundle()}
 	 */
 	public ResourceBundle getResourceBundle() throws MissingResourceException;
 	/**
@@ -214,6 +219,7 @@ public interface IPluginDescriptor {
 	 *
 	 * @param value the value
 	 * @return the resource string
+	 * @deprecated Use {@link Platform#getResourcesString() Platform#getResourceString()}
 	 * @see #getResourceBundle
 	 */
 	public String getResourceString(String value);
@@ -248,6 +254,7 @@ public interface IPluginDescriptor {
 	 * @param bundle the resource bundle
 	 * @return the resource string
 	 * @see #getResourceBundle
+	 * @deprecated Use {@link Platform#getResourceString() Platform#getResourceString()}
 	 */
 	public String getResourceString(String value, ResourceBundle bundle);
 	/**

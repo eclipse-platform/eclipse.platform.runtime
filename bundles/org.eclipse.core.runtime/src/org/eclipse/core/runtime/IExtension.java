@@ -36,10 +36,20 @@ public interface IExtension {
 	 * Returns the descriptor of the plug-in that declares this extension.
 	 *
 	 * @return the plug-in that declares this extension
-	 * @deprecated {@link org.eclipse.core.runtime.IExtension#getParentIdentifier() org.eclipse.core.IExtension#getParentIdentifier()}
+	 * @deprecated use {@link #getParentIdentifier() getParentIdentifier()}
 	 */
 	public IPluginDescriptor getDeclaringPluginDescriptor();
+
+	/**
+	 * Returns the identifier of the parent of this extension.  This value can be used
+	 * in various global facilities to discover the actual parent.
+	 * 
+	 * @return the idenifier of the parent
+	 * @see Plarform.getBundle(String)
+	 * @since 3.0
+	 */
 	public String getParentIdentifier();
+	//TODO Add a method returning the long ?
 	/**
 	 * Returns the unique identifier of the extension point
 	 * that this extension gets plugged into.
