@@ -16,7 +16,7 @@ import org.osgi.framework.Bundle;
 //This object is used to keep track on a bundle basis of the extension and extension points being contributed.
 //It is mainly used on removal so we can quickly get find objects to remove.
 
-//TODO maybe should this be removed to something like "Contributions'
+//TODO maybe should this be renamed to something like "Contributions'
 public class Namespace implements KeyedElement {
 	static final int[] EMPTY_CHILDREN = new int[] {0, 0};
 	
