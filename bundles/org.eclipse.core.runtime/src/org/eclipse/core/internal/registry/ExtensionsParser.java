@@ -126,6 +126,8 @@ public class ExtensionsParser extends DefaultHandler {
 
 	private Locator locator = null;
 
+	private String configurationElementValue = null;
+	
 	public ExtensionsParser(MultiStatus status) {
 		super();
 		this.status = status;
@@ -147,13 +149,15 @@ public class ExtensionsParser extends DefaultHandler {
 			// part of a configuration element (i.e. an element within an EXTENSION element
 			ConfigurationElement currentConfigElement = (ConfigurationElement) objectStack.peek();
 			String value = new String(ch, start, length);
-			String oldValue = currentConfigElement.getValueAsIs();
-			if (oldValue == null) {
-				if (value.trim().length() != 0)
-					currentConfigElement.setValue(translate(value));
+			if (configurationElementValue == null) {
+				if (value.trim().length() != 0) {
+					configurationElementValue = value;
+				}
 			} else {
-				currentConfigElement.setValue(oldValue + value);
+				configurationElementValue = configurationElementValue + value;
 			}
+			if (configurationElementValue != null)
+				currentConfigElement.setValue(translate(configurationElementValue));
 		}
 	}
 
@@ -209,6 +213,7 @@ public class ExtensionsParser extends DefaultHandler {
 				// We don't care what the element name was
 				stateStack.pop();
 				// Now finish up the configuration element object
+				configurationElementValue = null;
 				ConfigurationElement currentConfigElement = (ConfigurationElement) objectStack.pop();
 
 				String value = currentConfigElement.getValueAsIs();
@@ -267,6 +272,8 @@ public class ExtensionsParser extends DefaultHandler {
 		// be added to a vector in the extension object called _configuration.
 		stateStack.push(new Integer(CONFIGURATION_ELEMENT_STATE));
 
+		configurationElementValue = null;
+		
 		// create a new Configuration Element and push it onto the object stack
 		ConfigurationElement currentConfigurationElement = new ConfigurationElement();
 		objectStack.push(currentConfigurationElement);
