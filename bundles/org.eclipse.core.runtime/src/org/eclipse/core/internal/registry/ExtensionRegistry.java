@@ -401,8 +401,10 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		for (int i = 0; i < allBundles.length; i++) {
 			int[] extensions = registryObjects.getExtensionsFrom(allBundles[i].getBundleId());
 			for (int j = 0; j < extensions.length; j++) {
-				if (extensionId.equals(((Extension) registryObjects.getObject(extensions[j], RegistryObjectManager.EXTENSION)).getUniqueIdentifier()))
+				Extension ext = (Extension) registryObjects.getObject(extensions[j], RegistryObjectManager.EXTENSION);
+				if (extensionId.equals(ext.getUniqueIdentifier()) && registryObjects.getExtensionPointObject(ext.getExtensionPointIdentifier()) != null) {
 					return (IExtension) registryObjects.getHandle(extensions[j], RegistryObjectManager.EXTENSION);
+				}
 			}
 			
 		}
@@ -507,11 +509,18 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		access.enterRead();
 		try {
 			Bundle[] correspondingBundles = findAllBundles(namespace);
-			IExtension[] result = ExtensionHandle.EMPTY_ARRAY;
+			List tmp = new ArrayList();
 			for (int i = 0; i < correspondingBundles.length; i++) {
-				result = (IExtension[]) addArrays(result, registryObjects.getHandles(registryObjects.getExtensionsFrom(correspondingBundles[i].getBundleId()), RegistryObjectManager.EXTENSION));
+				Extension[] exts = (Extension[]) registryObjects.getObjects(registryObjects.getExtensionsFrom(correspondingBundles[i].getBundleId()), RegistryObjectManager.EXTENSION);
+				for (int j = 0; j < exts.length; j++) {
+					if (registryObjects.getExtensionPointObject(exts[j].getExtensionPointIdentifier()) != null)
+						tmp.add(registryObjects.getHandle(exts[i].getObjectId(), RegistryObjectManager.EXTENSION));
+				}
 			}
-			return result;
+			if (tmp.size() == 0)
+				return ExtensionHandle.EMPTY_ARRAY;
+			IExtension[] result = new IExtension[tmp.size()];
+			return (IExtension[]) tmp.toArray(result);
 		} finally {
 			access.exitRead();
 		}
