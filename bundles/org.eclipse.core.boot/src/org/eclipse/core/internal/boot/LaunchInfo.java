@@ -16,6 +16,23 @@ import org.eclipse.core.boot.IInstallInfo;
 public class LaunchInfo implements IInstallInfo {
 	
 	private static LaunchInfo current = null;
+	
+	/**
+	 * @deprecated
+	 */
+	public static class Status {
+
+		public Status(String msg) {
+		}
+		public Status(String msg, Throwable exc) {
+		}
+		public String getMessage() {
+			return "";
+		}
+		public Throwable getException() {
+			return null;
+		}
+	}
 
 	/*
 	 * @see IInstallInfo#getApplicationConfigurationIdentifier()
@@ -70,6 +87,20 @@ public class LaunchInfo implements IInstallInfo {
 	/**
 	 * @deprecated
 	 */
+	public boolean hasStatus() {
+		return false;
+	}
+	
+	/**
+	 * @deprecated
+	 */
+	public Status[] getStatus() {
+		return new Status[0];
+	}
+	
+	/**
+	 * @deprecated
+	 */
 	static void shutdown() {
 	}
 	
@@ -84,7 +115,7 @@ public class LaunchInfo implements IInstallInfo {
 	/**
 	 * @deprecated
 	 */
-	public static IInstallInfo getCurrent() {
+	public static LaunchInfo getCurrent() {
 		return current;
 	}
 }
