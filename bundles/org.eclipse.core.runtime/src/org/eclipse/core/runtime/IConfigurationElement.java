@@ -225,5 +225,15 @@ public interface IConfigurationElement {
 	 */
 	public String getValueAsIs();
 	
+	/**
+	 * Returns the namespace for this configuration element. This value can be used
+	 * in various global facilities to discover this configuration element's provider.
+	 * <p>
+	 * 
+	 * @return the namespace for this configuration element
+	 * @see Platform#getBundle(String)
+	 * @see IExtensionRegistry
+	 * @since 3.1
+	 */
 	public String getNamespace();
 }

@@ -20,7 +20,6 @@ import org.osgi.framework.Bundle;
  * An object which represents the user-defined contents of an extension
  * in a plug-in manifest.
  */
-
 public class ConfigurationElement extends NestedRegistryModelObject {
 	static final ConfigurationElement[] EMPTY_ARRAY = new ConfigurationElement[0];
 	private static final int PLUGIN_ERROR = 1;
@@ -32,14 +31,16 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 	//Store the properties and the value of the configuration element.
 	//The format is the following: 
 	//	[p1, v1, p2, v2, configurationElementValue]
-	//If the array size is even, there is no value.
+	//If the array size is even, there is no "configurationElementValue (ie getValue returns null)".
 	//The properties and their values are alternated (v1 is the value of p1). 
 	private String[] propertiesAndValue;
 
 	//The name of the configuration element
 	private String name;
 
-	//The bundle from which classes will be loaded.
+	//The bundle from which classes will be loaded. It is never a fragment
+	//This value can be null when the element is loaded from disk and the bundle has been uninstalled.
+	//This happens when the configuration is obtained from a delta containing removed extension.
 	private Bundle contributingBundle;
 
 	ConfigurationElement() {
@@ -295,5 +296,9 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 
 	void setParentType(byte type) {
 		parentType = type;
+	}
+	
+	String getNamespace() {
+		return contributingBundle != null ? contributingBundle.getSymbolicName() : null;
 	}
 }

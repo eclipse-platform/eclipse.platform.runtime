@@ -82,8 +82,6 @@ public class ConfigurationElementHandle extends Handle implements IConfiguration
 	}
 
 	public Object getParent() {
-		//Because we are not sure what is the parent, we try to get the object
-		// with a type. If this fails then we try with the other type.
 		ConfigurationElement actualCe = getConfigurationElement();
 		return objectManager.getHandle(actualCe.parentId, actualCe.parentType);
 	}
@@ -101,6 +99,9 @@ public class ConfigurationElementHandle extends Handle implements IConfiguration
 	}
 
 	public String getNamespace() {
-		return getDeclaringExtension().getNamespace();
+		String result = getConfigurationElement().getNamespace();
+		if (result == null)
+			return getDeclaringExtension().getNamespace();
+		return result;
 	}
 }
