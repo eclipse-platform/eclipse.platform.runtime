@@ -2,14 +2,14 @@
 <plugin
    id="org.eclipse.core.boot"
    name="%pluginName"
-   version="2.1.0"
+   version="2.1.1"
    provider-name="%providerName">
 
-<runtime>
-   <library name="boot.jar">
-      <export name="*"/>
-      <packages prefixes="com.ibm.oti,org.eclipse.core"/>
-   </library>
-</runtime>
+   <runtime>
+      <library name="boot.jar">
+         <export name="*"/>
+         <packages prefixes="com.ibm.oti,org.eclipse.core"/>
+      </library>
+   </runtime>
 
 </plugin>
