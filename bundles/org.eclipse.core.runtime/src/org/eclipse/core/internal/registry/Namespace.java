@@ -12,7 +12,6 @@ package org.eclipse.core.internal.registry;
 
 import org.osgi.framework.Bundle;
 
-
 public class Namespace implements KeyedElement {
 	static final int[] EMPTY_CHILDREN = new int[] {0, 0};
 	

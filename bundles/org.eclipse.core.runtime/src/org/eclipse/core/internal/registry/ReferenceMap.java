@@ -1,3 +1,14 @@
+/*******************************************************************************
+ * Copyright (c) 2004 IBM Corporation and others.
+ * All rights reserved. This program and the accompanying materials 
+ * are made available under the terms of the Common Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/cpl-v10.html
+ * 
+ * Contributors:
+ *     IBM Corporation - initial API and implementation
+ *******************************************************************************/
+
 //TODO Add the specifics HEADERS and the APACHE licence (this is coming from the jakarta/commons project)
 package org.eclipse.core.internal.registry;
 
@@ -45,7 +56,7 @@ import java.util.*;
  *  provide synchronized access to a <Code>ReferenceMap</Code>.
  *
  *  @author Paul Jack 
- *  @version $Id: ReferenceMap.java,v 1.7.2.1 2004/05/22 12:14:01 scolebourne Exp $
+ *  @version $Id: ReferenceMap.java,v 1.1.2.1 2004/11/04 21:40:35 prapicau Exp $
  *  @since 2.1
  *  @see java.lang.ref.Reference
  */
