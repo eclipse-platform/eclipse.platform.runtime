@@ -466,20 +466,86 @@ public final class Platform {
 	public static IExtensionRegistry getExtensionRegistry() {
 		return InternalPlatform.getDefault().getRegistry();
 	}
-	public static URL find(Bundle b, IPath path) {
-		return FindSupport.find(b, path, null);
-	}
+	/**
+	 * Returns a URL for the given path in the given bundle.  Returns <code>null</code> if the URL
+	 * could not be computed or created.
+	 * 
+	 * @param bundle the bundle in which to search
+	 * @param file path relative to plug-in installation location 
+	 * @return a URL for the given path or <code>null</code>  It is not
+	 * necessary to perform a 'resolve' on this URL.
+	 * @since 3.0
+	 */
 	
-	public static URL find(Bundle b, IPath path, Map override) {
-		return FindSupport.find(b, path, override);
-	}
-	
-	public static InputStream openStream(Bundle b, IPath file) throws IOException {
-		return FindSupport.openStream(b, file, false);
+	public static URL find(Bundle bundle, IPath path) {
+		return FindSupport.find(bundle, path, null);
 	}
 	
 	/**
-	 * Returns an input stream for the specified file. The file path
+	 * Returns a URL for the given path in the given bundle.  Returns <code>null</code> if the URL
+	 * could not be computed or created.
+	 * 
+	 * find will look for this path under the directory structure for this plugin
+	 * and any of its fragments.  If this path will yield a result outside the
+	 * scope of this plugin, <code>null</code> will be returned.  Note that
+	 * there is no specific order to the fragments.
+	 * 
+	 * The following arguments may also be used
+	 * 
+	 *  $nl$ - for language specific information
+	 *  $os$ - for operating system specific information
+	 *  $ws$ - for windowing system specific information
+	 * 
+	 * A path of $nl$/about.properties in an environment with a default 
+	 * locale of en_CA will return a URL corresponding to the first place
+	 * about.properties is found according to the following order:
+	 *   plugin root/nl/en/CA/about.properties
+	 *   fragment1 root/nl/en/CA/about.properties
+	 *   fragment2 root/nl/en/CA/about.properties
+	 *   ...
+	 *   plugin root/nl/en/about.properties
+	 *   fragment1 root/nl/en/about.properties
+	 *   fragment2 root/nl/en/about.properties
+	 *   ...
+	 *   plugin root/about.properties
+	 *   fragment1 root/about.properties
+	 *   fragment2 root/about.properties
+	 *   ...
+	 * 
+	 * If a locale other than the default locale is desired, use an
+	 * override map.
+	 * 
+	 * @param bundle the bundle in which to search
+	 * @param path file path relative to plug-in installation location
+	 * @param override map of override substitution arguments to be used for
+	 * any $arg$ path elements. The map keys correspond to the substitution
+	 * arguments (eg. "$nl$" or "$os$"). The resulting
+	 * values must be of type java.lang.String. If the map is <code>null</code>,
+	 * or does not contain the required substitution argument, the default
+	 * is used.
+	 * @return a URL for the given path or <code>null</code>.  It is not
+	 * necessary to perform a 'resolve' on this URL.
+	 * @since 3.0
+	 */
+	public static URL find(Bundle b, IPath path, Map override) {
+		return FindSupport.find(b, path, override);
+	}
+	/**
+	 * Returns an input stream for the specified file in the given bundle. The file path
+	 * must be specified relative this the plug-in's installation location.
+	 *
+	 * @param bundle the bundle in which to search
+	 * @param file path relative to plug-in installation location
+	 * @return an input stream
+	 * @see #openStream(Bundle, IPath, boolean)
+	 * @since 3.0
+	 */
+	public static InputStream openStream(Bundle bundle, IPath file) throws IOException {
+		return FindSupport.openStream(bundle, file, false);
+	}
+	
+	/**
+	 * Returns an input stream for the specified file in the given bundle. The file path
 	 * must be specified relative to this plug-in's installation location.
 	 * Optionally, the platform searches for the correct localized version
 	 * of the specified file using the users current locale, and Java
@@ -489,27 +555,54 @@ public final class Platform {
 	 * The caller must close the returned stream when done.
 	 * </p>
 	 *
+	 * @param bundle the bundle in which to search
 	 * @param file path relative to plug-in installation location
 	 * @param localized <code>true</code> for the localized version
 	 *   of the file, and <code>false</code> for the file exactly
 	 *   as specified
 	 * @return an input stream
+	 * @since 3.0
 	 */	
-	public static InputStream openStream(Bundle b, IPath file, boolean localized) throws IOException {
-		return InternalPlatform.getDefault().openStream(b, file, localized);		
+	public static InputStream openStream(Bundle bundle, IPath file, boolean localized) throws IOException {
+		return InternalPlatform.getDefault().openStream(bundle, file, localized);		
 	}
 	
+	/**
+	 * Returns the location in the local file system of the 
+	 * plug-in state area for the given bundle.
+	 * If the plug-in state area did not exist prior to this call,
+	 * it is created.
+	 * <p>
+	 * The plug-in state area is a file directory within the
+	 * platform's metadata area where a plug-in is free to create files.
+	 * The content and structure of this area is defined by the plug-in,
+	 * and the particular plug-in is solely responsible for any files
+	 * it puts there. It is recommended for plug-in preference settings and 
+	 * other configuration parameters.
+	 * </p>
+	 *
+	 * @param bundle the bundle whose state location if returned
+	 * @return a local file system path
+	 * @since 3.0
+	 */
 	public static IPath getStateLocation(Bundle bundle) {
 		return InternalPlatform.getDefault().getStateLocation(bundle);
 	}
 	
+	/**
+	 * Returns the log for the given bundle.  If no such log exists, one is created.
+	 *
+	 * @param bundle the bundle whose log is returned
+	 * @return the log for the given bundle
+	 * @since 3.0
+	 */
 	public static ILog getLog(Bundle bundle) {
 		return InternalPlatform.getDefault().getLog(bundle);
 	}
 	/**
-	 * Returns this plug-in's resource bundle for the current locale. 
+	 * Returns the given bundle's resource bundle for the current locale. 
 	 * <p>
-	 * The bundle is stored as the <code>plugin.properties</code> file 
+	 * The resource bundle is stored as the <code>plugin.properties</code> file 
 	 * in the plug-in install directory, and contains any translatable
 	 * strings used in the plug-in manifest file (<code>plugin.xml</code>)
 	 * along with other resource strings used by the plug-in implementation.
@@ -517,6 +610,7 @@ public final class Platform {
 	 *
 	 * @return the resource bundle
 	 * @exception MissingResourceException if the resource bundle was not found
+	 * @since 3.0
 	 */
 	public static ResourceBundle getResourceBundle(Bundle bundle) throws MissingResourceException {
 		return InternalPlatform.getDefault().getResourceBundle(bundle);
@@ -524,7 +618,7 @@ public final class Platform {
 	/**
 	 * Returns a resource string corresponding to the given argument value.
 	 * If the argument value specifies a resource key, the string
-	 * is looked up in the default resource bundle. If the argument does not
+	 * is looked up in the default resource bundle for the given runtime bundle. If the argument does not
 	 * specify a valid key, the argument itself is returned as the
 	 * resource string. The key lookup is performed in the
 	 * plugin.properties resource bundle. If a resource string 
@@ -535,19 +629,21 @@ public final class Platform {
 	 * Note, that the "%" character is stripped off prior to lookup
 	 * in the resource bundle.
 	 * <p>
-	 * Equivalent to <code>getResourceString(value, getResourceBundle())</code>
+	 * Equivalent to <code>getResourceString(bundle, value, getResourceBundle())</code>
 	 * </p>
 	 *
+	 * @param bundle the runtime bundle 
 	 * @param value the value
 	 * @return the resource string
 	 * @see #getResourceBundle
+	 * @since 3.0
 	 */
-	public static  String getResourceString(Bundle bundle, String value){
+	public static  String getResourceString(Bundle bundle, String value) {
 		return InternalPlatform.getDefault().getResourceString(bundle, value);
 	}
 	/**
 	 * Returns a resource string corresponding to the given argument 
-	 * value and bundle.
+	 * value and resource bundle in the given runtime bundle.
 	 * If the argument value specifies a resource key, the string
 	 * is looked up in the given resource bundle. If the argument does not
 	 * specify a valid key, the argument itself is returned as the
@@ -572,10 +668,12 @@ public final class Platform {
 	 * </pre>
 	 * </p>
 	 *
+	 * @param bundle the runtime bundle
 	 * @param value the value
 	 * @param bundle the resource bundle
 	 * @return the resource string
 	 * @see #getResourceBundle
+	 * @since 3.0
 	 */
 	public static String getResourceString(Bundle bundle, String value, ResourceBundle resourceBundle) {
 		return InternalPlatform.getDefault().getResourceString(bundle, value, resourceBundle);
