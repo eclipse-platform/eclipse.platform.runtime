@@ -156,7 +156,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	// used to enforce concurrent access policy for readers/writers
 	private ReadWriteMonitor access = new ReadWriteMonitor();
 
-	// deltas not broadcasted yet
+	// deltas not broadcasted yet. Deltas are kept organized by bundle name (fragments go with their host)
 	private transient Map deltas = new HashMap(11);
 
 	// all registry change listeners
@@ -377,15 +377,15 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		return extension.getConfigurationElements();
 	}
 
-	private RegistryDelta getDelta(long bundleId) {
+	private RegistryDelta getDelta(String namespace) {
 		// is there a delta for the plug-in?
-		RegistryDelta existingDelta = (RegistryDelta) deltas.get(new Long(bundleId));
+		RegistryDelta existingDelta = (RegistryDelta) deltas.get(namespace);
 		if (existingDelta != null)
 			return existingDelta;
 
 		//if not, create one
-		RegistryDelta delta = new RegistryDelta(bundleId);
-		deltas.put(new Long(bundleId), delta);
+		RegistryDelta delta = new RegistryDelta();
+		deltas.put(namespace, delta);
 		return delta;
 	}
 
@@ -543,7 +543,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		extensionDelta.setExtension(extension);
 		extensionDelta.setExtensionPoint(extPoint.getObjectId());
 		extensionDelta.setKind(kind);
-		getDelta(extPoint.getBundleId()).addExtensionDelta(extensionDelta);
+		getDelta(extPoint.getNamespace()).addExtensionDelta(extensionDelta);
 	}
 
 	/*
@@ -554,7 +554,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			return;
 		if (extensions == null || extensions.length == 0)
 			return;
-		RegistryDelta pluginDelta = getDelta(extPoint.getBundleId());
+		RegistryDelta pluginDelta = getDelta(extPoint.getNamespace());
 		for (int i = 0; i < extensions.length; i++) {
 			ExtensionDelta extensionDelta = new ExtensionDelta();
 			extensionDelta.setExtension(extensions[i]);
@@ -565,7 +565,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	}
 
 	private void recordExtensionPointRemoval(ExtensionPoint extPoint) {
-		RegistryDelta pluginDelta = getDelta(extPoint.getBundleId());
+		RegistryDelta pluginDelta = getDelta(extPoint.getNamespace());
 		pluginDelta.addRemovedExtensionPoints(extPoint.getUniqueIdentifier());
 	}
 
@@ -623,7 +623,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		// otherwise, unlink the extension from the extension point
 		int[] existingExtensions = extPoint.getRawChildren();
 		int[] newExtensions = null;
-		if (existingExtensions.length > 1) {
+		if (existingExtensions != null && existingExtensions.length > 1) {
 			newExtensions = new int[existingExtensions.length - 1];
 			for (int i = 0, j = 0; i < existingExtensions.length; i++)
 				if (existingExtensions[i] != extension.getObjectId())
@@ -730,7 +730,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 
 		String debugOption = InternalPlatform.getDefault().getOption(OPTION_DEBUG_EVENTS_EXTENSION);
 		DEBUG = debugOption == null ? false : debugOption.equalsIgnoreCase("true"); //$NON-NLS-1$	
-		if (DEBUG)
+		if (true)
 			addRegistryChangeListener(new IRegistryChangeListener() {
 				public void registryChanged(IRegistryChangeEvent event) {
 					System.out.println(event);

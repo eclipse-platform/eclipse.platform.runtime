@@ -20,11 +20,10 @@ import org.eclipse.core.runtime.IExtensionDelta;
  */
 public class RegistryDelta {
 	private Set extensionDeltas = new HashSet();
-	private long bundle;
 	private List removedExtensionPoints = new ArrayList(3);
 	
-	RegistryDelta(long bundleId) {
-		this.bundle = bundleId;
+	RegistryDelta() {
+		//Nothing to do
 	}
 
 	public void addRemovedExtensionPoints(String value) {
@@ -72,10 +71,7 @@ public class RegistryDelta {
 	}
 
 	public String toString() {
-		return "\n\tHost " + bundle + ": " + extensionDeltas; //$NON-NLS-1$//$NON-NLS-2$
+		return "\n\tHost " +  ": " + extensionDeltas; //$NON-NLS-1$//$NON-NLS-2$
 	}
 
-	public long getBundleId() {
-		return bundle;
-	}
 }
