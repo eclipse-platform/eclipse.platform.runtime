@@ -439,8 +439,4 @@ public class PluginDescriptor implements IPluginDescriptor {
 	public boolean hasPluginObject() {
 		return pluginObject!=null;
 	}
-
-	public void markAsDeactivated() {
-		deactivated = true;
-	}
 }
