@@ -10,7 +10,7 @@
  *******************************************************************************/
 package org.eclipse.core.internal.registry;
 
-public class InvalidHandleException extends RuntimeException {
+public class InvalidHandleException extends IllegalStateException {
 	public InvalidHandleException(String message) {
 		super(message);
 	}
