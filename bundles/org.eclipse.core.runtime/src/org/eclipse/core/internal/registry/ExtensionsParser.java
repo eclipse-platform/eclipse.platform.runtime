@@ -77,9 +77,11 @@ public class ExtensionsParser extends DefaultHandler {
 
 	// Keep track of the object encountered.
 	private RegistryObjectManager objectManager;
-	
+
 	private Contribution namespace;
-	
+
+	private String configurationElementValue;
+
 	/** 
 	 * Status code constant (value 1) indicating a problem in a bundle extensions
 	 * manifest (<code>extensions.xml</code>) file.
@@ -152,16 +154,15 @@ public class ExtensionsParser extends DefaultHandler {
 			// part of a configuration element (i.e. an element within an EXTENSION element
 			ConfigurationElement currentConfigElement = (ConfigurationElement) objectStack.peek();
 			String value = new String(ch, start, length);
-			String oldValue = currentConfigElement.getValueAsIs();
-			if (oldValue == null) {
+			if (configurationElementValue == null) {
 				if (value.trim().length() != 0) {
-					currentConfigElement.setValueAsIs(value);
-					currentConfigElement.setValue(translate(value));
+					configurationElementValue = value;
 				}
 			} else {
-				currentConfigElement.setValueAsIs(oldValue + value);
-				currentConfigElement.setValue(translate(oldValue + value));
+				configurationElementValue = configurationElementValue + value;
 			}
+			if (configurationElementValue != null)
+				currentConfigElement.setValue(translate(configurationElementValue));
 		}
 	}
 
@@ -235,7 +236,7 @@ public class ExtensionsParser extends DefaultHandler {
 				NestedRegistryModelObject parent = (NestedRegistryModelObject) objectStack.peek();
 				// Want to add this configuration element to the subelements of an extension
 				int[] oldValues = parent.getRawChildren();
-				int size =  oldValues.length;
+				int size = oldValues.length;
 				int[] newValues = new int[size + 1];
 				for (int i = 0; i < size; i++) {
 					newValues[i] = oldValues[i];
@@ -243,7 +244,7 @@ public class ExtensionsParser extends DefaultHandler {
 				newValues[size] = currentConfigElement.getObjectId();
 				parent.setRawChildren(newValues);
 				currentConfigElement.setParentId(parent.getObjectId());
-				currentConfigElement.setParentType(parent instanceof ConfigurationElement ? false : true);
+				currentConfigElement.setParentType(parent instanceof ConfigurationElement ? RegistryObjectManager.CONFIGURATION_ELEMENT : RegistryObjectManager.EXTENSION);
 				break;
 		}
 	}
@@ -272,6 +273,8 @@ public class ExtensionsParser extends DefaultHandler {
 		// element object we created (the last one we pop off the stack) will need to
 		// be added to a vector in the extension object called _configuration.
 		stateStack.push(new Integer(CONFIGURATION_ELEMENT_STATE));
+
+		configurationElementValue = null;
 
 		// create a new Configuration Element and push it onto the object stack
 		ConfigurationElement currentConfigurationElement = new ConfigurationElement();
@@ -345,8 +348,8 @@ public class ExtensionsParser extends DefaultHandler {
 		this.namespace = currentNamespace;
 		if (InternalPlatform.DEBUG)
 			start = System.currentTimeMillis();
-		
-		SAXParserFactory factory = (SAXParserFactory) factoryTracker.getService(); 
+
+		SAXParserFactory factory = (SAXParserFactory) factoryTracker.getService();
 
 		if (factory == null)
 			throw new SAXException(Policy.bind("parse.xmlParserNotAvailable")); //$NON-NLS-1$
@@ -386,10 +389,10 @@ public class ExtensionsParser extends DefaultHandler {
 			parentConfigurationElement.setProperties(RegistryObjectManager.EMPTY_STRING_ARRAY);
 			return;
 		}
-		String[] properties = new String[len*2];
+		String[] properties = new String[len * 2];
 		for (int i = 0; i < len; i++) {
-			properties[i*2] = attributes.getLocalName(i);
-			properties[i*2 + 1] = translate(attributes.getValue(i));
+			properties[i * 2] = attributes.getLocalName(i);
+			properties[i * 2 + 1] = translate(attributes.getValue(i));
 		}
 		parentConfigurationElement.setProperties(properties);
 		properties = null;
@@ -412,7 +415,7 @@ public class ExtensionsParser extends DefaultHandler {
 			else if (attrName.equals(EXTENSION_TARGET)) {
 				// check if point is specified as a simple or qualified name
 				String targetName;
-				if (attrValue.lastIndexOf('.') == -1) {	
+				if (attrValue.lastIndexOf('.') == -1) {
 					String baseId = namespace.getNamespace();
 					targetName = baseId + "." + attrValue; //$NON-NLS-1$
 				} else
@@ -466,8 +469,7 @@ public class ExtensionsParser extends DefaultHandler {
 				currentExtPoint.setLabel(translate(attrValue));
 			else if (attrName.equals(EXTENSION_POINT_ID)) {
 				currentExtPoint.setUniqueIdentifier(namespace.getNamespace() + '.' + attrValue);
-			}
-			else if (attrName.equals(EXTENSION_POINT_SCHEMA))
+			} else if (attrName.equals(EXTENSION_POINT_SCHEMA))
 				currentExtPoint.setSchema(attrValue);
 			else
 				unknownAttribute(EXTENSION_POINT, attrName); //$NON-NLS-1$
