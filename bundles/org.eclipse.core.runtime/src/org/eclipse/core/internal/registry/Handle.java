@@ -10,18 +10,28 @@
  *******************************************************************************/
 package org.eclipse.core.internal.registry;
 
+/**
+ * A handle is the super class to all registry objects that are now served to users.
+ * The handles never hold on to any "real" content of the object being represented.
+ * A handle can become stale if its referenced object has been removed from the registry.
+ * @since 3.1. 
+ */
 public abstract class Handle {
-	static RegistryObjectManager objectManager;	//TODO Need to discuss that during the review
+	static RegistryObjectManager objectManager;
 	
-	private int self;
+	private int objectId;
 	
 	protected int getId() {
-		return self;
+		return objectId;
 	}
 
-	public Handle(int value) {
-		self = value;
+	Handle(int value) {
+		objectId = value;
 	}
 	
+	/**
+	 * Return the actual object corresponding to this handle.
+	 * @throws InvalidHandleException when the handle is stale.
+	 */
 	abstract NestedRegistryModelObject getObject(); 
 }
