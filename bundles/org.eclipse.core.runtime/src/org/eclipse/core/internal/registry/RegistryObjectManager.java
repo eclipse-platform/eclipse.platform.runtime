@@ -82,6 +82,7 @@ public class RegistryObjectManager {
 		fromCache = true;
 
 		if ("true".equalsIgnoreCase(System.getProperty(InternalPlatform.PROP_NO_LAZY_CACHE_LOADING))) { //$NON-NLS-1$
+			//TODO Here we could grow all the tables to the right size (ReferenceMap)
 			reader.setHoldObjects(true);
 			markOrphansHasDirty(getOrphans());
 			fromCache = reader.readAllCache(this);

@@ -688,7 +688,6 @@ public class ExtensionRegistry implements IExtensionRegistry {
 					TableReader.setOrphansFile(currentFileManager.lookup(TableReader.ORPHANS, false));
 					fromCache = registryObjects.init(computeRegistryStamp());
 				} catch (IOException e) {
-					//TODO Display a message here
 					// Ignore the exception. The registry will be rebuilt from the xml files.
 				}
 			}
