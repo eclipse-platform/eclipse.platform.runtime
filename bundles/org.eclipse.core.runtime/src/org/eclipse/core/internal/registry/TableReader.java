@@ -71,7 +71,6 @@ public class TableReader {
 	private void openInputFile() {
 		try {
 			input = new DataInputStream(new BufferedInputStream(new FileInputStream(mainDataFile)));
-			//			size = input.available();
 		} catch (FileNotFoundException e) {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error readling the registry cache", e));
 		} catch (IOException e) {
@@ -82,7 +81,6 @@ public class TableReader {
 	private void openExtraFile() {
 		try {
 			extraInput = new DataInputStream(new BufferedInputStream(new FileInputStream(extraDataFile)));
-			//			sizeExtra = extraInput.available();
 		} catch (FileNotFoundException e) {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error readling the registry cache", e));
 		} catch (IOException e) {
@@ -304,26 +302,10 @@ public class TableReader {
 	}
 
 	private void goToInputFile(int offset) throws IOException {
-		//		int where = size - input.available();
-		//		if (where < offset) {
-		//			input.skipBytes(offset - where);
-		//		} else {
-		//			closeInputFile();
-		//			openInputFile();
-		//			input.skipBytes(offset);
-		//		}
 		input.skipBytes(offset);
 	}
 
 	private void goToExtraFile(int offset) throws IOException {
-		//		int where = sizeExtra - extraInput.available();
-		//		if (where < offset) {
-		//			extraInput.skipBytes(offset - where);
-		//		} else {
-		//			closeExtraFile();
-		//			openExtraFile();
-		//			extraInput.skipBytes(offset);
-		//		}
 		extraInput.skipBytes(offset);
 	}
 
