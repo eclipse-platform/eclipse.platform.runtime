@@ -23,7 +23,7 @@ public class TableWriter {
 	static File mainDataFile;
 	static File extraDataFile;
 	static File tableFile;
-	static File namespaceFile;
+	static File contributionsFile;
 	static File orphansFile;
 	
 	static void setMainDataFile(File main) {
@@ -38,8 +38,8 @@ public class TableWriter {
 		tableFile = table;
 	}
 
-	static void setNamespaceFile(File namespace) {
-		namespaceFile = namespace;
+	static void setContributionsFile(File fileName) {
+		contributionsFile = fileName;
 	}
 
 	static void setOrphansFile(File orphan) {
@@ -100,7 +100,7 @@ public class TableWriter {
 	}
 
 	private void saveNamespaces(KeyedHashSet newNamespaces) throws IOException {
-		DataOutputStream outputNamespace = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(namespaceFile)));
+		DataOutputStream outputNamespace = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(contributionsFile)));
 		KeyedElement[] elements = newNamespaces.elements();
 		outputNamespace.writeInt(elements.length);
 		for (int i = 0; i < elements.length; i++) {

@@ -77,7 +77,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			ConfigurationElementHandle[] children = (ConfigurationElementHandle[]) ce.getChildren();
 			Handle[] result = new Handle[] {ce};
 			for (int i = 0; i < children.length; i++) {
-				result = (Handle[]) addArrays(result, collect(children[i]));
+				result = (Handle[]) concatArrays(result, collect(children[i]));
 			}
 			return result;
 		}
@@ -112,10 +112,10 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			//Now do a traversal of all the extensions that must be removed to collect the ids of all the configuration elements to remove
 			for (Iterator iter = removedExtensions.iterator(); iter.hasNext();) {
 				ExtensionHandle extension = (ExtensionHandle) iter.next();
-				toBeRemoved = (Handle[]) addArrays(toBeRemoved, new ExtensionHandle[] {extension});
+				toBeRemoved = (Handle[]) concatArrays(toBeRemoved, new ExtensionHandle[] {extension});
 				ConfigurationElementHandle[] ces = (ConfigurationElementHandle[]) extension.getConfigurationElements();
 				for (int j = 0; j < ces.length; j++) {
-					toBeRemoved = (Handle[]) addArrays(toBeRemoved, collect(ces[j]));
+					toBeRemoved = (Handle[]) concatArrays(toBeRemoved, collect(ces[j]));
 				}
 			}
 
@@ -202,7 +202,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	}
 
 	/* Utility method to help with array concatenations */
-	static Object addArrays(Object a, Object b) {
+	static Object concatArrays(Object a, Object b) {
 		Object[] result = (Object[]) Array.newInstance(a.getClass().getComponentType(), Array.getLength(a) + Array.getLength(b));
 		System.arraycopy(a, 0, result, 0, Array.getLength(a));
 		System.arraycopy(b, 0, result, Array.getLength(a), Array.getLength(b));
@@ -457,7 +457,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			Bundle[] correspondingBundles = findAllBundles(namespace);
 			IExtensionPoint[] result = ExtensionPointHandle.EMPTY_ARRAY;
 			for (int i = 0; i < correspondingBundles.length; i++) {
-				result = (IExtensionPoint[]) addArrays(result, registryObjects.getHandles(registryObjects.getExtensionPointsFrom(correspondingBundles[i].getBundleId()), RegistryObjectManager.EXTENSION_POINT));
+				result = (IExtensionPoint[]) concatArrays(result, registryObjects.getHandles(registryObjects.getExtensionPointsFrom(correspondingBundles[i].getBundleId()), RegistryObjectManager.EXTENSION_POINT));
 			}
 			return result;
 		} finally {
@@ -522,7 +522,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	boolean hasNamespace(long name) {
 		access.enterRead();
 		try {
-			return registryObjects.hasNamespace(name);
+			return registryObjects.hasContribution(name);
 		} finally {
 			access.exitRead();
 		}
@@ -704,7 +704,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 				try {
 					TableReader.setExtraDataFile(currentFileManager.lookup(TableReader.EXTRA, false));
 					TableReader.setMainDataFile(currentFileManager.lookup(TableReader.MAIN, false));
-					TableReader.setNamespaceFile(currentFileManager.lookup(TableReader.NAMESPACE, false));
+					TableReader.setContributionsFile(currentFileManager.lookup(TableReader.CONTRIBUTIONS, false));
 					TableReader.setOrphansFile(currentFileManager.lookup(TableReader.ORPHANS, false));
 					fromCache = registryObjects.init(computeRegistryStamp());
 				} catch (IOException e) {
@@ -757,30 +757,30 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		File tableFile = null;
 		File mainFile = null;
 		File extraFile = null;
-		File namespaceFile = null;
+		File contributionsFile = null;
 		File orphansFile = null;
 		try {
 			manager.lookup(TableReader.TABLE, true);
 			manager.lookup(TableReader.MAIN, true);
 			manager.lookup(TableReader.EXTRA, true);
-			manager.lookup(TableReader.NAMESPACE, true);
+			manager.lookup(TableReader.CONTRIBUTIONS, true);
 			manager.lookup(TableReader.ORPHANS, true);
 			tableFile = File.createTempFile(TableReader.TABLE, ".new", manager.getBase()); //$NON-NLS-1$
 			mainFile = File.createTempFile(TableReader.MAIN, ".new", manager.getBase()); //$NON-NLS-1$
 			extraFile = File.createTempFile(TableReader.EXTRA, ".new", manager.getBase()); //$NON-NLS-1$
-			namespaceFile = File.createTempFile(TableReader.NAMESPACE, ".new", manager.getBase()); //$NON-NLS-1$
+			contributionsFile = File.createTempFile(TableReader.CONTRIBUTIONS, ".new", manager.getBase()); //$NON-NLS-1$
 			orphansFile = File.createTempFile(TableReader.ORPHANS, ".new", manager.getBase()); //$NON-NLS-1$
 			TableWriter.setTableFile(tableFile);
 			TableWriter.setExtraDataFile(extraFile);
 			TableWriter.setMainDataFile(mainFile);
-			TableWriter.setNamespaceFile(namespaceFile);
+			TableWriter.setContributionsFile(contributionsFile);
 			TableWriter.setOrphansFile(orphansFile);
 		} catch (IOException e) {
 			return; //Ignore the exception since we can recompute the cache
 		}
 		try {
 			if (new TableWriter().saveCache(registryObjects, computeRegistryStamp()))
-				manager.update(new String[] {TableReader.TABLE, TableReader.MAIN, TableReader.EXTRA, TableReader.NAMESPACE, TableReader.ORPHANS}, new String[] {tableFile.getName(), mainFile.getName(), extraFile.getName(), namespaceFile.getName(), orphansFile.getName()});
+				manager.update(new String[] {TableReader.TABLE, TableReader.MAIN, TableReader.EXTRA, TableReader.CONTRIBUTIONS, TableReader.ORPHANS}, new String[] {tableFile.getName(), mainFile.getName(), extraFile.getName(), contributionsFile.getName(), orphansFile.getName()});
 		} catch (IOException e) {
 			//Ignore the exception since we can recompute the cache
 		}

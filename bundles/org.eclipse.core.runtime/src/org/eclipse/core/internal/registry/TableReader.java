@@ -41,8 +41,8 @@ public class TableReader {
 	static File tableFile;
 
 	//The namespace file
-	static final String NAMESPACE = ".namespace"; //$NON-NLS-1$
-	static File namespaceFile;
+	static final String CONTRIBUTIONS = ".contributions"; //$NON-NLS-1$
+	static File contributionsFile;
 
 	//The orphan file
 	static final String ORPHANS = ".orphans"; //$NON-NLS-1$
@@ -64,8 +64,8 @@ public class TableReader {
 		tableFile = table;
 	}
 
-	static void setNamespaceFile(File namespace) {
-		namespaceFile = namespace;
+	static void setContributionsFile(File namespace) {
+		contributionsFile = namespace;
 	}
 
 	static void setOrphansFile(File orphan) {
@@ -363,7 +363,7 @@ public class TableReader {
 
 	public KeyedHashSet loadNamespaces() {
 		try {
-			DataInputStream namespaceInput = new DataInputStream(new BufferedInputStream(new FileInputStream(namespaceFile)));
+			DataInputStream namespaceInput = new DataInputStream(new BufferedInputStream(new FileInputStream(contributionsFile)));
 			int size = namespaceInput.readInt();
 			KeyedHashSet result = new KeyedHashSet(size);
 			for (int i = 0; i < size; i++) {

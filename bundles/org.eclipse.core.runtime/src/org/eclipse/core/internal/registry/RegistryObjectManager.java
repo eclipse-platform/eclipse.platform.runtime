@@ -108,7 +108,7 @@ public class RegistryObjectManager {
 		return tmp;
 	}
 
-	synchronized boolean hasNamespace(long id) {
+	synchronized boolean hasContribution(long id) {
 		Object result = newContributions.getByKey(new Long(id));
 		if (result == null) 
 			result = getFormerContributions().getByKey(new Long(id));
@@ -158,17 +158,6 @@ public class RegistryObjectManager {
 
 	private void release(NestedRegistryModelObject toRelease) {
 		heldObjects.remove(toRelease);
-	}
-
-	synchronized Object getUnknownObject(int id, byte type) {
-		Object result = cache.get(new Integer(id));
-		if (result == null) {
-			result = load(id, type);
-			if (result != null) {
-				cache.put(new Integer(id), result);
-			}
-		}
-		return result;
 	}
 
 	synchronized Object getObject(int id, byte type) {
@@ -416,10 +405,6 @@ public class RegistryObjectManager {
 		}
 		markOrphansHasDirty(orphans);
 		return;
-	}
-	
-	int[] getOrphans(String extensionPoint) {
-		return (int[]) getOrphans().get(extensionPoint);
 	}
 	
 	int[] removeOrphans(String extensionPoint) {
