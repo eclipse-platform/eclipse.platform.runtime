@@ -11,11 +11,13 @@
 package org.eclipse.core.tests.runtime.content;
 
 import java.io.*;
+import java.util.*;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import org.eclipse.core.internal.content.*;
 import org.eclipse.core.runtime.*;
 import org.eclipse.core.runtime.content.*;
+import org.eclipse.core.runtime.content.IContentTypeManager.ContentTypeChangeEvent;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.core.tests.harness.BundleTestingHelper;
 import org.eclipse.core.tests.harness.EclipseWorkspaceTest;
@@ -650,5 +652,90 @@ public class IContentTypeManagerTest extends EclipseWorkspaceTest {
 			// clean-up
 			text.removeFileSpec("foo.bar", IContentType.FILE_NAME_SPEC);
 		}
+	}
+
+	class ContentTypeChangeTracer implements IContentTypeManager.IContentTypeChangeListener {
+		private Set changed = new HashSet();
+
+		public void contentTypeChanged(ContentTypeChangeEvent event) {
+			changed.add(event.getContentType());
+		}
+
+		public Collection getChanges() {
+			return changed;
+		}
+
+		public void reset() {
+			changed.clear();
+		}
+
+		public boolean isOnlyChange(IContentType myType) {
+			return changed.size() == 1 && changed.contains(myType);
+		}
+	}
+
+	public void testEvents() {
+		IContentTypeManager contentTypeManager = Platform.getContentTypeManager();
+		IContentType myType = contentTypeManager.getContentType(RuntimeTestsPlugin.PI_RUNTIME_TESTS + ".myContent");
+		assertNotNull("0.9", myType);
+
+		ContentTypeChangeTracer tracer;
+
+		tracer = new ContentTypeChangeTracer();
+		contentTypeManager.addContentTypeChangeListener(tracer);
+
+		// add a file spec and check event
+		try {
+			myType.addFileSpec("another.file.name", IContentType.FILE_NAME_SPEC);
+		} catch (CoreException e) {
+			fail("1.0", e);
+		}
+		assertTrue("1.1", tracer.isOnlyChange(myType));
+
+		// remove a non-existing file spec - should not cause an event to be fired
+		tracer.reset();
+		try {
+			myType.removeFileSpec("another.file.name", IContentType.FILE_EXTENSION_SPEC);
+		} catch (CoreException e) {
+			fail("2.0", e);
+		}
+		assertTrue("2.1", !tracer.isOnlyChange(myType));
+
+		// add a file spec again and check no event is generated
+		tracer.reset();
+		try {
+			myType.addFileSpec("another.file.name", IContentType.FILE_NAME_SPEC);
+		} catch (CoreException e) {
+			fail("3.0", e);
+		}
+		assertTrue("3.1", !tracer.isOnlyChange(myType));
+
+		// remove a file spec and check event
+		tracer.reset();
+		try {
+			myType.removeFileSpec("another.file.name", IContentType.FILE_NAME_SPEC);
+		} catch (CoreException e) {
+			fail("4.0", e);
+		}
+		assertTrue("4.1", tracer.isOnlyChange(myType));
+
+		// change the default charset and check event
+		tracer.reset();
+		try {
+			myType.setDefaultCharset("FOO");
+		} catch (CoreException e) {
+			fail("5.0", e);
+		}
+		assertTrue("5.1", tracer.isOnlyChange(myType));
+
+		// set the default charset to the same - no event should be generated
+		tracer.reset();
+		try {
+			myType.setDefaultCharset("FOO");
+		} catch (CoreException e) {
+			fail("6.0", e);
+		}
+		assertTrue("6.1", !tracer.isOnlyChange(myType));
+
 	}
 }

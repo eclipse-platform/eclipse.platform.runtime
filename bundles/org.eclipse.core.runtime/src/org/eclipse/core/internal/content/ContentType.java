@@ -170,12 +170,16 @@ public final class ContentType implements IContentType {
 		if (type != FILE_EXTENSION_SPEC && type != FILE_NAME_SPEC)
 			throw new IllegalArgumentException("Unknown type: " + type); //$NON-NLS-1$		
 		if (!internalAddFileSpec(fileSpec, type | SPEC_USER_DEFINED))
+			// the entry was already there, nothing to do...
 			return;
-		// persist using preferences
+		// notify listeners
+		manager.fireContentTypeChangeEvent(this);
+		// update preferences
 		String key = getPreferenceKey(type);
 		Preferences contentTypeNode = manager.getPreferences().node(getId());
 		final String[] userSet = internalGetFileSpecs(type | IGNORE_PRE_DEFINED);
 		contentTypeNode.put(key, toListString(userSet));
+		// persist preferences
 		try {
 			contentTypeNode.flush();
 		} catch (BackingStoreException bse) {
@@ -472,20 +476,19 @@ public final class ContentType implements IContentType {
 		return false;
 	}
 
-	void internalRemoveFileSpec(String fileSpec, int typeMask) {
-		if (aliasTarget != null) {
-			aliasTarget.internalRemoveFileSpec(fileSpec, typeMask);
-			return;
-		}
+	boolean internalRemoveFileSpec(String fileSpec, int typeMask) {
+		if (aliasTarget != null)
+			return aliasTarget.internalRemoveFileSpec(fileSpec, typeMask);
 		if (fileSpecs == null)
-			return;
+			return false;
 		for (Iterator i = fileSpecs.iterator(); i.hasNext();) {
 			FileSpec spec = (FileSpec) i.next();
 			if ((spec.getType() == typeMask) && fileSpec.equals(spec.getText())) {
 				i.remove();
-				return;
+				return true;
 			}
 		}
+		return false;
 	}
 
 	private IContentDescriber invalidateDescriber(Throwable reason) {
@@ -533,8 +536,12 @@ public final class ContentType implements IContentType {
 		}
 		if (type != FILE_EXTENSION_SPEC && type != FILE_NAME_SPEC)
 			throw new IllegalArgumentException("Unknown type: " + type); //$NON-NLS-1$
-		internalRemoveFileSpec(fileSpec, type | SPEC_USER_DEFINED);
-		// persist using preferences
+		if (!internalRemoveFileSpec(fileSpec, type | SPEC_USER_DEFINED))
+			// the entry was not there... nothing to do
+			return;
+		// notify listeners
+		manager.fireContentTypeChangeEvent(this);
+		// update preferences
 		String key = getPreferenceKey(type);
 		Preferences contentTypeNode = manager.getPreferences().node(getId());
 		final String[] userSet = internalGetFileSpecs(type | IGNORE_PRE_DEFINED);
@@ -542,6 +549,7 @@ public final class ContentType implements IContentType {
 			contentTypeNode.remove(key);
 		else
 			contentTypeNode.put(key, toListString(userSet));
+		// persist using preferences
 		try {
 			contentTypeNode.flush();
 		} catch (BackingStoreException bse) {
@@ -567,13 +575,22 @@ public final class ContentType implements IContentType {
 	 * (non-Javadoc) 
 	 * @see org.eclipse.core.runtime.content.IContentType#setDefaultCharset(java.lang.String)
 	 */
-	public void setDefaultCharset(String userCharset) throws CoreException {
-		this.userCharset = userCharset;
+	public void setDefaultCharset(String newCharset) throws CoreException {
+		if (userCharset == null) {
+			if (newCharset == null)
+				return;
+		} else if (userCharset.equals(newCharset))
+			return;
+		userCharset = newCharset;
+		// notify listeners
+		manager.fireContentTypeChangeEvent(this);
+		// update preferences
 		Preferences contentTypeNode = manager.getPreferences().node(getId());
 		if (userCharset == null)
 			contentTypeNode.remove(PREF_DEFAULT_CHARSET);
 		else
 			contentTypeNode.put(PREF_DEFAULT_CHARSET, userCharset);
+		// persist preferences
 		try {
 			contentTypeNode.flush();
 		} catch (BackingStoreException bse) {
