@@ -81,10 +81,10 @@ public class RegistryObjectManager {
 		if ("true".equals(System.getProperty(InternalPlatform.PROP_NO_LAZY_CACHE_LOADING))) { //$NON-NLS-1$
 			reader.setHoldObjects(true);
 			markOrphansHasDirty(getOrphans());
-			reader.readAllCache(this);
+			fromCache = reader.readAllCache(this);
 			formerContributions = getFormerContributions();
 		}
-		return true;
+		return fromCache;
 	}
 
 	synchronized void addNamespace(Contribution namespace) {
