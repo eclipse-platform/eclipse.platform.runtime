@@ -25,7 +25,6 @@ import org.eclipse.core.internal.runtime.*;
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.internal.runtime.Policy;
 import org.eclipse.core.runtime.*;
-import org.eclipse.core.internal.compatibility.PluginActivator;
 import org.osgi.framework.*;
 
 public class PluginDescriptor implements IPluginDescriptor {
@@ -39,7 +38,6 @@ public class PluginDescriptor implements IPluginDescriptor {
 	private boolean bundleNotFound = false; // marker to prevent unnecessary lookups
 	private Object[] cachedClasspath = null; // cached value of class loader's classpath
 	private org.osgi.framework.Bundle bundleOsgi;
-	private PluginActivator activator;
 	
 	static final String PLUGIN_URL = PlatformURLHandler.PROTOCOL + PlatformURLHandler.PROTOCOL_SEPARATOR + "/" + PlatformURLPluginConnection.PLUGIN + "/"; //$NON-NLS-1$ //$NON-NLS-2$
 
@@ -782,21 +780,6 @@ public class PluginDescriptor implements IPluginDescriptor {
 	public PluginDescriptor(org.osgi.framework.Bundle b) {
 		bundleOsgi = b;
 	}
-
-	/**
-	 * @param activator
-	 */
-	public void setPluginActivator(PluginActivator activator){
-		this.activator = activator;
-	}
-
-	/**
-	 * @return
-	 */
-	public PluginActivator getPluginActivator() {
-		return activator;
-	}
-
 	public boolean isLegacy() {
 		return new Boolean((String) bundleOsgi.getHeaders().get("Legacy")).booleanValue();
 	}

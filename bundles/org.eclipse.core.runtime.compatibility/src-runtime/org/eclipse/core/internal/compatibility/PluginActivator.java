@@ -37,7 +37,6 @@ public class PluginActivator implements BundleActivator {
 		this.context = context;
 
 		PluginDescriptor pd = (PluginDescriptor) Extension.getPluginDescriptor(context.getBundle().getGlobalName());
-		pd.setPluginActivator(this);
 		plugin = pd.getPlugin();
 		plugin.startup();
 	}
