@@ -31,7 +31,7 @@ public class RegistryDelta {
 		removedExtensionPoints.add(value);
 	}
 
-	public List removedExtensionPoints() {
+	public List getRemovedExtensionPoints() {
 		return removedExtensionPoints;
 	}
 
@@ -78,10 +78,4 @@ public class RegistryDelta {
 	public long getBundleId() {
 		return bundle;
 	}
-	//	String getNamespace() {
-	//		if (Platform.isFragment(bundle))
-	//			return Platform.getHosts(bundle)[0].getSymbolicName();
-	//		return bundle.getSymbolicName();
-	//	}
-
 }
