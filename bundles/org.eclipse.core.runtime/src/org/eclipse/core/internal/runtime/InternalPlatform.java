@@ -356,6 +356,11 @@ public final class InternalPlatform implements IPlatform {
 		} else {
 			metaArea = new DataArea();
 			metaArea.setInstanceDataLocation(location);
+			try {
+				metaArea.createLockFile();
+			} catch (CoreException e) {
+				throw new IllegalStateException(e.getStatus().getMessage());
+			}
 		}
 		metaArea.setKeyringFile(keyringFile);
 		metaArea.setPasswork(password);			
