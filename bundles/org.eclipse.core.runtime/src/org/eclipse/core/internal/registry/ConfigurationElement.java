@@ -282,7 +282,7 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 	}
 
 	ConfigurationElement[] getChildren(String childrenName) {//TODO This is not really nice. The same kind of code is in ConfigurationElementHandle
-		if (getRawChildren() == RegistryObjectManager.EMPTY_INT_ARRAY)
+		if (getRawChildren().length == 0)
 			return ConfigurationElement.EMPTY_ARRAY;
 
 		ConfigurationElement[] result = new ConfigurationElement[1]; //Most of the time there is only one match

@@ -239,7 +239,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			return;
 		// otherwise, link them
 		int[] existingExtensions = extensionPoint.getRawChildren();
-		if (existingExtensions != RegistryObjectManager.EMPTY_INT_ARRAY) { //TODO Verify with someone that this never happens
+		if (existingExtensions.length != 0) { //TODO Verify with someone that this never happens
 			System.err.println("this can not happen because this code is only being called when a new extensoin point is being added because a new plugin is being parsed"); //$NON-NLS-1$
 			//			newExtensions = new IExtension[existingExtensions.length + orphans.length];
 			//			System.arraycopy(existingExtensions, 0, newExtensions, 0, existingExtensions.length);

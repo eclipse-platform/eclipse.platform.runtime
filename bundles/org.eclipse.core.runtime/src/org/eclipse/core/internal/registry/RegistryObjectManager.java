@@ -187,7 +187,7 @@ public class RegistryObjectManager {
 	}
 
 	synchronized NestedRegistryModelObject[] getObjects(int[] values, byte type) {
-		if (values == RegistryObjectManager.EMPTY_INT_ARRAY) {
+		if (values.length == 0) {
 			switch (type) {
 				case EXTENSION_POINT :
 					return ExtensionPoint.EMPTY_ARRAY;
