@@ -235,7 +235,7 @@ public class ExtensionsParser extends DefaultHandler {
 				NestedRegistryModelObject parent = (NestedRegistryModelObject) objectStack.peek();
 				// Want to add this configuration element to the subelements of an extension
 				int[] oldValues = parent.getRawChildren();
-				int size = (oldValues == null) ? 0 : oldValues.length;
+				int size =  oldValues.length;
 				int[] newValues = new int[size + 1];
 				for (int i = 0; i < size; i++) {
 					newValues[i] = oldValues[i];

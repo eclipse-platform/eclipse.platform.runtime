@@ -16,7 +16,7 @@ package org.eclipse.core.internal.registry;
  */
 public abstract class NestedRegistryModelObject implements KeyedElement {
 	//Object identifier
-	protected int objectId = RegistryObjectManager.UNKNOWN;
+	private int objectId = RegistryObjectManager.UNKNOWN;
 	//The children of the element
 	protected int[] children = RegistryObjectManager.EMPTY_INT_ARRAY;
 	//The position of the extra data when available
@@ -26,6 +26,7 @@ public abstract class NestedRegistryModelObject implements KeyedElement {
 		children = values;
 	}
 	
+	//This can not return null. It returns the singleton empty array or an array 
 	int[] getRawChildren() {
 		return children;
 	}

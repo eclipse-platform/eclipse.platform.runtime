@@ -32,15 +32,16 @@ public class RegistryObjectManager {
 	public static int UNKNOWN = -1;
 
 	// key: extensionPointName, value: object id
-	HashtableOfStringAndInt extensionPoints;			//This is loaded on startup. Then entries can be added when loading a new plugin from the xml.
+	HashtableOfStringAndInt extensionPoints; //This is loaded on startup. Then entries can be added when loading a new plugin from the xml.
 	// key: object id, value: an object
-	protected ReferenceMap cache;							//Entries are added by getter. The structure is not thread safe.
+	protected ReferenceMap cache; //Entries are added by getter. The structure is not thread safe.
 	//key: int, value: int
-	private HashtableOfInt fileOffsets;						//This is read once on startup when loading from the cache. Entries are never added here. They are only removed to prevent "removed" objects to be reloaded. 
+	private HashtableOfInt fileOffsets; //This is read once on startup when loading from the cache. Entries are never added here. They are only removed to prevent "removed" objects to be reloaded. 
 
 	int nextId = 1;	//This is only used to get the next number available.
 
-	//Those two data structures are only used when the addition or the removal of a plugin occurs
+	//Those two data structures are only used when the addition or the removal of a plugin occurs.
+	//They are used to keep track on a bundle basis of the extension being added or removed
 	KeyedHashSet newNamespaces; //represents the namespaces added and removed during this session.
 	private Object formerNamespaces; //represents the namespaces encountered in previous sessions. This is loaded lazily
 
@@ -91,6 +92,7 @@ public class RegistryObjectManager {
 	}
 
 	synchronized Set getNamespaces() {
+		//TODO Need to check for fragments
 		KeyedElement[] formerElts;
 		KeyedElement[] newElts;
 		formerElts = getFormersNamespaces().elements();
@@ -184,7 +186,7 @@ public class RegistryObjectManager {
 	}
 
 	synchronized NestedRegistryModelObject[] getObjects(int[] values, byte type) {
-		if (values == null || values.length == 0) {
+		if (values == RegistryObjectManager.EMPTY_INT_ARRAY) {
 			switch (type) {
 				case EXTENSION_POINT :
 					return ExtensionPoint.EMPTY_ARRAY;
@@ -241,7 +243,7 @@ public class RegistryObjectManager {
 
 	Handle[] getHandles(int[] ids, byte type) {
 		Handle[] results = null;
-		int nbrId = ids == null ? 0 : ids.length;
+		int nbrId = ids.length;
 		switch (type) {
 			case EXTENSION_POINT :
 				if (nbrId == 0)
@@ -283,8 +285,7 @@ public class RegistryObjectManager {
 	}
 
 	synchronized ExtensionPointHandle[] getExtensionPointsHandles() {
-		int[] extensionPointIds = extensionPoints.getValues();
-		return (ExtensionPointHandle[]) getHandles(extensionPointIds, EXTENSION_POINT);
+		return (ExtensionPointHandle[]) getHandles(extensionPoints.getValues(), EXTENSION_POINT);
 	}
 
 	synchronized ExtensionPointHandle getExtensionPointHandle(String xptUniqueId) {
@@ -324,6 +325,7 @@ public class RegistryObjectManager {
 	}
 
 	synchronized public int[] getExtensionsFrom(long bundleId) {
+		//TODO This needs to collect extension points for fragments 
 		KeyedElement tmp = newNamespaces.getByKey(new Long(bundleId));
 		if (tmp == null)
 			tmp = getFormersNamespaces().getByKey(new Long(bundleId));

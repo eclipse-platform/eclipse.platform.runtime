@@ -231,13 +231,9 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		// otherwise, link them
 		int[] newExtensions;
 		int[] existingExtensions = extPoint.getRawChildren();
-		if (existingExtensions == null)
-			newExtensions = new int[] {extension};
-		else {
-			newExtensions = new int[existingExtensions.length + 1];
-			System.arraycopy(existingExtensions, 0, newExtensions, 0, existingExtensions.length);
-			newExtensions[newExtensions.length - 1] = extension;
-		}
+		newExtensions = new int[existingExtensions.length + 1];
+		System.arraycopy(existingExtensions, 0, newExtensions, 0, existingExtensions.length);
+		newExtensions[newExtensions.length - 1] = extension;
 		link(extPoint, newExtensions);
 		recordChange(extPoint, extension, IExtensionDelta.ADDED);
 	}
@@ -253,7 +249,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			return;
 		// otherwise, link them
 		int[] existingExtensions = extensionPoint.getRawChildren();
-		if (existingExtensions != null && existingExtensions.length != 0) { //TODO Verify with someone that this never happens
+		if (existingExtensions != RegistryObjectManager.EMPTY_INT_ARRAY) { //TODO Verify with someone that this never happens
 			System.err.println("this can not happen because this code is only being called when a new extensoin point is being added because a new plugin is being parsed"); //$NON-NLS-1$
 			//			newExtensions = new IExtension[existingExtensions.length + orphans.length];
 			//			System.arraycopy(existingExtensions, 0, newExtensions, 0, existingExtensions.length);
@@ -405,6 +401,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		if (correspondingBundle == null)
 			return null;
 
+		//TODO Need to look in fragments
 		int[] extensions = registryObjects.getExtensionsFrom(correspondingBundle.getBundleId());
 		for (int i = 0; i < extensions.length; i++) {
 			if (extensionId.equals(((Extension) registryObjects.getObject(extensions[i], RegistryObjectManager.EXTENSION)).getUniqueIdentifier()))
@@ -478,6 +475,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	public IExtensionPoint[] getExtensionPoints(String namespace) {
 		access.enterRead();
 		try {
+			//TODO This needs to collect extension points for fragments 
 			return (IExtensionPoint[]) registryObjects.getHandles(registryObjects.getExtensionPointsFrom(Platform.getBundle(namespace).getBundleId()), RegistryObjectManager.EXTENSION_POINT);
 		} finally {
 			access.exitRead();
@@ -494,6 +492,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			Bundle correspondingBundle = Platform.getBundle(namespace);
 			if (correspondingBundle == null)
 				return ExtensionHandle.EMPTY_ARRAY;
+			//TODO Need to check for fragments
 			return (IExtension[]) registryObjects.getHandles(registryObjects.getExtensionsFrom(Platform.getBundle(namespace).getBundleId()), RegistryObjectManager.EXTENSION);
 		} finally {
 			access.exitRead();
@@ -525,10 +524,6 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	}
 
 	private void link(ExtensionPoint extPoint, int[] extensions) {
-		if (extensions == null || extensions.length == 0) {
-			extPoint.setRawChildren(null);
-			return;
-		}
 		extPoint.setRawChildren(extensions);
 	}
 
@@ -606,7 +601,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		Extension extension = (Extension) registryObjects.getObject(extensionId, RegistryObjectManager.EXTENSION);
 		String xptName = extension.getExtensionPointIdentifier();
 		ExtensionPoint extPoint = registryObjects.getExtensionPointObject(xptName);
-		if (extPoint == null) {
+		if (extPoint == null) {	//TODO Check the behavior of this block
 			// not found - maybe it was an orphan extension
 			int[] existingOrphanExtensions = (int[]) orphanExtensions.get(xptName);
 			if (existingOrphanExtensions == null)
@@ -623,7 +618,10 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		// otherwise, unlink the extension from the extension point
 		int[] existingExtensions = extPoint.getRawChildren();
 		int[] newExtensions = null;
-		if (existingExtensions != null && existingExtensions.length > 1) {
+		if (existingExtensions.length > 1) {
+			if (existingExtensions.length == 1)
+				newExtensions = RegistryObjectManager.EMPTY_INT_ARRAY;
+			
 			newExtensions = new int[existingExtensions.length - 1];
 			for (int i = 0, j = 0; i < existingExtensions.length; i++)
 				if (existingExtensions[i] != extension.getObjectId())
