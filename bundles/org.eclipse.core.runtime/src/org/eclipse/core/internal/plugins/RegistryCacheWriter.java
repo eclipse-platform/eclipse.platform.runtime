@@ -40,7 +40,7 @@ public class RegistryCacheWriter {
 public RegistryCacheWriter() {
 	super();
 }
-private int addToObjectTable(Object object) {
+public int addToObjectTable(Object object) {
 	if (objectTable == null) {
 		objectTable = new HashMap();
 	}
@@ -57,7 +57,7 @@ private int getFromObjectTable(Object object) {
 	}
 	return -1;
 }
-private void writeLabel(byte labelValue, DataOutputStream out) {
+public void writeLabel(byte labelValue, DataOutputStream out) {
 	try {
 		if (DEBUG_REGISTRY_CACHE) {
 			out.writeUTF (RegistryCacheReader.decipherLabel(labelValue));
