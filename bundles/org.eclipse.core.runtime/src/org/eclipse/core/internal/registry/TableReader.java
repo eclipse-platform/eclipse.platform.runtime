@@ -432,7 +432,6 @@ public class TableReader {
 
 	private ExtensionPoint loadFullExtensionPoint() throws IOException {
 		ExtensionPoint xpt = basicLoadExtensionPoint();
-		System.out.println(xpt.getObjectId());
 		String[] tmp = basicLoadExtensionPointExtraData();
 		xpt.setLabel(tmp[0]);
 		xpt.setSchema(tmp[1]);

@@ -148,7 +148,6 @@ public class TableWriter {
 	private void saveExtensionPoint(ExtensionPointHandle xpt) throws IOException {
 		//save the file position
 		offsets.put(xpt.getId(), mainOutput.size());
-		System.out.println(xpt.getId());
 		//save the extensionPoint
 		mainOutput.writeInt(xpt.getId());
 		saveArray(xpt.getObject().getRawChildren(), mainOutput);
@@ -208,7 +207,6 @@ public class TableWriter {
 		}
 
 		for (int i = 0; i < exts.length; i++) {
-			System.out.println(">>");
 			IConfigurationElement[] ces = exts[i].getConfigurationElements();
 			outputStream.writeInt(ces.length); //this is not mandatory
 			for (int j = 0; j < ces.length; j++) {
