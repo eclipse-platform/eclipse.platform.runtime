@@ -11,7 +11,8 @@
 package org.eclipse.core.internal.registry;
 
 import java.lang.ref.SoftReference;
-import org.eclipse.core.internal.runtime.*;
+import org.eclipse.core.internal.runtime.CompatibilityHelper;
+import org.eclipse.core.internal.runtime.Policy;
 import org.eclipse.core.runtime.Platform;
 import org.osgi.framework.Bundle;
 

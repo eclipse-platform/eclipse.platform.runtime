@@ -11,6 +11,7 @@
 package org.eclipse.core.internal.registry;
 
 import java.util.Map;
+import org.eclipse.core.internal.runtime.Policy;
 
 /**
  * @since 3.1
@@ -18,7 +19,7 @@ import java.util.Map;
 public class TemporaryObjectManager implements IObjectManager {
 	private Map actualObjects; //id --> registry objects
 	private RegistryObjectManager parent; //the main object manager (should be equals to extensionRegistry.getObjectManager)
-	
+
 	public TemporaryObjectManager(Map actualObjects, RegistryObjectManager parent) {
 		this.actualObjects = actualObjects;
 		this.parent = parent;
@@ -84,15 +85,21 @@ public class TemporaryObjectManager implements IObjectManager {
 		return results;
 	}
 
-	public Object getObject(int id, byte type) {
+	synchronized public Object getObject(int id, byte type) {
+		Object result = null;
 		try {
-			return  parent.getObject(id, type);
-		} catch(InvalidHandleException e) {
-			return actualObjects.get(new Integer(id));
+			result = parent.getObject(id, type);
+		} catch (InvalidHandleException e) {
+			if (actualObjects != null) {
+				result = actualObjects.get(new Integer(id));
+			}
 		}
+		if (result == null)
+			throw new InvalidHandleException(Policy.bind("registry.staleHandle", Integer.toString(id))); //$NON-NLS-1$
+		return result;
 	}
 
-	public RegistryObject[] getObjects(int[] values, byte type) {
+	synchronized public RegistryObject[] getObjects(int[] values, byte type) {
 		if (values.length == 0) {
 			switch (type) {
 				case RegistryObjectManager.EXTENSION_POINT :
@@ -119,13 +126,12 @@ public class TemporaryObjectManager implements IObjectManager {
 				break;
 		}
 		for (int i = 0; i < values.length; i++) {
-			try {
-			results[i] = (RegistryObject) parent.getObject(values[i], type);
-			} catch(InvalidHandleException e) {
-				results[i] = (RegistryObject) actualObjects.get(new Integer(values[i]));
-			}
+			results[i] = (RegistryObject) getObject(values[i], type);
 		}
 		return results;
 	}
 
+	public synchronized void close() {
+		actualObjects = null;
+	}
 }

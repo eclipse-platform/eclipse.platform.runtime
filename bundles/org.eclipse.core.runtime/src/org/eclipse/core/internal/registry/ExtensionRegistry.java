@@ -15,30 +15,9 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.eclipse.core.internal.runtime.InternalPlatform;
-import org.eclipse.core.internal.runtime.ListenerList;
-import org.eclipse.core.internal.runtime.Policy;
-import org.eclipse.core.runtime.IConfigurationElement;
-import org.eclipse.core.runtime.IExtension;
-import org.eclipse.core.runtime.IExtensionDelta;
-import org.eclipse.core.runtime.IExtensionPoint;
-import org.eclipse.core.runtime.IExtensionRegistry;
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.IRegistryChangeEvent;
-import org.eclipse.core.runtime.IRegistryChangeListener;
-import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.MultiStatus;
-import org.eclipse.core.runtime.Platform;
-import org.eclipse.core.runtime.Status;
+import java.util.*;
+import org.eclipse.core.internal.runtime.*;
+import org.eclipse.core.runtime.*;
 import org.eclipse.core.runtime.jobs.ISchedulingRule;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.osgi.service.datalocation.FileManager;
@@ -64,13 +43,15 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		};
 		private Map deltas;
 		private Object[] listenerInfos;
-
-		public ExtensionEventDispatcherJob(Object[] listenerInfos, Map deltas) {
+		private IObjectManager finalTarget;
+		
+		public ExtensionEventDispatcherJob(Object[] listenerInfos, Map deltas, IObjectManager finalTarget) {
 			// name not NL'd since it is a system job
 			super("Registry event dispatcher"); //$NON-NLS-1$
 			setSystem(true);
 			this.listenerInfos = listenerInfos;
 			this.deltas = deltas;
+			this.finalTarget = finalTarget;
 			// all extension event dispatching jobs use this rule
 			setRule(EXTENSION_EVENT_RULE);
 		}
@@ -87,6 +68,9 @@ public class ExtensionRegistry implements IExtensionRegistry {
 					String message = re.getMessage() == null ? "" : re.getMessage(); //$NON-NLS-1$
 					result.add(new Status(IStatus.ERROR, Platform.PI_RUNTIME, IStatus.OK, message, re));
 				}
+			}
+			for (Iterator iter = deltas.values().iterator(); iter.hasNext();) {
+				((RegistryDelta) iter.next()).getObjectManager().close();
 			}
 			return result;
 		}
@@ -182,7 +166,6 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		newExtensions[newExtensions.length - 1] = extension;
 		link(extPoint, newExtensions);
 		return recordChange(extPoint, extension, IExtensionDelta.ADDED);
-//		setObjectManager(extPoint);
 	}
 
 	/**
@@ -237,7 +220,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			return;
 
 		Set affectedNamespaces = addExtensionsAndExtensionPoints(element);
-		setObjectManagers(affectedNamespaces, registryObjects);
+		setObjectManagers(affectedNamespaces, registryObjects.createDelegatingObjectManager(registryObjects.getAssociatedObjects(element.getContributingBundle().getBundleId())));
 	}
 
 	private void setObjectManagers(Set affectedNamespaces, IObjectManager manager) {
@@ -249,8 +232,9 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	private void basicRemove(long bundleId) {
 		// ignore anonymous namespaces
 		Set affectedNamespaces = removeExtensionsAndExtensionPoints(bundleId);
-		IObjectManager mgr = registryObjects.getRemovedObjects(bundleId);
-		setObjectManagers(affectedNamespaces, mgr);
+		Map associatedObjects = registryObjects.getAssociatedObjects(bundleId);
+		registryObjects.removeObjects(associatedObjects);
+		setObjectManagers(affectedNamespaces, registryObjects.createDelegatingObjectManager(associatedObjects));
 		
 		registryObjects.removeContribution(bundleId);
 	}
@@ -278,7 +262,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		// the deltas have been saved for notification - we can clear them now
 		deltas.clear();
 		// do the notification asynchronously
-		new ExtensionEventDispatcherJob(tmpListeners, tmpDeltas).schedule();
+		new ExtensionEventDispatcherJob(tmpListeners, tmpDeltas, registryObjects).schedule();
 	}
 
 	/*

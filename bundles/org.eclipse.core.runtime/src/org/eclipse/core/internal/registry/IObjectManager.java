@@ -21,4 +21,6 @@ public interface IObjectManager {
 	Object getObject(int id, byte type);
 
 	RegistryObject[] getObjects(int[] values, byte type);
+	
+	void close();
 }

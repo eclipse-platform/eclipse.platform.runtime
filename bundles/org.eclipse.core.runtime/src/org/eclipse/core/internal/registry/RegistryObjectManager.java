@@ -12,7 +12,6 @@ package org.eclipse.core.internal.registry;
 
 import java.lang.ref.SoftReference;
 import java.util.*;
-
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.internal.runtime.Policy;
 
@@ -178,12 +177,12 @@ public class RegistryObjectManager implements IObjectManager {
 
 	private Object basicGetObject(int id, byte type) {
 		Object result = cache.get(new Integer(id));
-		if (result == null) {
+		if (result == null && fromCache) {
 			result = load(id, type);
-			if (result == null)
-				throw new InvalidHandleException(Policy.bind("registry.staleHandle", Integer.toString(id))); //$NON-NLS-1$
-			cache.put(new Integer(id), result);
 		}
+		if (result == null)
+			throw new InvalidHandleException(Policy.bind("registry.staleHandle", Integer.toString(id))); //$NON-NLS-1$
+		cache.put(new Integer(id), result);
 		return result;
 	}
 
@@ -463,7 +462,7 @@ public class RegistryObjectManager implements IObjectManager {
 	 * them in a IObjectManager so that they can be accessed from the appropriate
 	 * deltas but not from the registry.
 	 */
-	synchronized IObjectManager getRemovedObjects(long contributionId) {
+	synchronized Map getAssociatedObjects(long contributionId) {
 		//Collect all the objects that must be removed
 		int[] xpts = getExtensionPointsFrom(contributionId);
 		int[] exts = getExtensionsFrom(contributionId);
@@ -480,15 +479,24 @@ public class RegistryObjectManager implements IObjectManager {
 		for (int i = 0; i < xpts.length; i++) {
 			ExtensionPoint xpt = (ExtensionPoint) basicGetObject(xpts[i], RegistryObjectManager.EXTENSION_POINT);
 			actualObjects.put(new Integer(xpts[i]), xpt);
-			removeExtensionPoint(xpt.getUniqueIdentifier());
 		}
-		
+
+		return actualObjects;
+	}
+
+	synchronized void removeObjects(Map associatedObjects) {
 		//Remove the objects from the main object manager so they can no longer be accessed.
-		Collection allValues = actualObjects.values();
+		Collection allValues = associatedObjects.values();
 		for (Iterator iter = allValues.iterator(); iter.hasNext();) {
-			remove(((RegistryObject) iter.next()).getObjectId(), true);
+			RegistryObject toRemove = (RegistryObject) iter.next();
+			remove((toRemove).getObjectId(), true);
+			if (toRemove instanceof ExtensionPoint)
+				removeExtensionPoint(((ExtensionPoint) toRemove).getUniqueIdentifier());
 		}
-		return new TemporaryObjectManager(actualObjects, this);
+	}
+
+	IObjectManager createDelegatingObjectManager(Map object) {
+		return new TemporaryObjectManager(object, this);
 	}
 
 	private void collectChildren(RegistryObject ce, Map collector) {
@@ -497,5 +505,9 @@ public class RegistryObjectManager implements IObjectManager {
 			collector.put(new Integer(children[j].getObjectId()), children[j]);
 			collectChildren(children[j], collector);
 		}
+	}
+
+	public void close() {
+		//do nothing.
 	}
 }
