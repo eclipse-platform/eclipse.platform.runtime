@@ -149,6 +149,7 @@ public class TableWriter {
 		offsets.put(ext.getId(), mainOutput.size());
 		mainOutput.writeInt(ext.getId());
 		writeStringOrNull(ext.getSimpleIdentifier(), mainOutput);
+		writeStringOrNull(ext.getNamespace(), mainOutput);
 		saveArray(ext.getObject().getRawChildren(), mainOutput);
 		mainOutput.writeInt(getExtraDataPosition());
 		saveExtensionData(ext);
@@ -212,7 +213,6 @@ public class TableWriter {
 	private void saveExtensionData(ExtensionHandle extension) throws IOException {
 		writeStringOrNull(extension.getLabel(), extraOutput);
 		writeStringOrNull(extension.getExtensionPointUniqueIdentifier(), extraOutput);
-		writeStringOrNull(extension.getNamespace(), extraOutput);
 	}
 
 	private void writeStringOrNull(String string, DataOutputStream out) throws IOException {

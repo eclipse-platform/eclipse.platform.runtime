@@ -23,23 +23,26 @@ public class Extension extends NestedRegistryModelObject {
 	
 	//Extension simple identifier
 	private String simpleId;
+	//The namespace for the extension. For fragments the namespace is the namespace of the host bundle. 
+	private String namespace;
 	
-	//The label of the extension and the extension point uid
+	//	Place holder for the label and  the extension point. It contains either a String[] or a SoftReference to a String[].
+	//The array layout is [label, extension point name]
 	private Object extraInformation;
-	private static final byte LABEL = 0;
-	private static final byte XPT_NAME = 1;
-	private static final byte NAMESPACE = 2;	//TODO Need to put that in the main file
-	private static final int EXTRA_SIZE = 3;
+	private static final byte LABEL = 0;	//The human readable name of the extension
+	private static final byte XPT_NAME = 1; // The fully qualified name of the extension point to which this extension is attached to
+	private static final int EXTRA_SIZE = 2;
 	
 	Extension() {
 		//nothing to do
 	}
 	
-	Extension(int self, String simpleId, int[] children, int extraData) {
+	Extension(int self, String simpleId, String namespace, int[] children, int extraData) {
 		setObjectId(self);
 		this.simpleId = simpleId;
 		setRawChildren(children);
 		this.extraDataOffset = extraData;
+		this.namespace = namespace;
 	}
 
 	String getExtensionPointIdentifier() {
@@ -97,15 +100,11 @@ public class Extension extends NestedRegistryModelObject {
 	}
 	
 	String getNamespace() {
-		return getExtraData()[NAMESPACE];
+		return namespace;
 	}
 
 	void setNamespace(String value) {
-		if (extraInformation == null) {
-			extraInformation = new String[EXTRA_SIZE];
-		}
-		((String[]) extraInformation)[NAMESPACE] = value;
-	
+		namespace = value;
 	}
 	
 	public String toString() {

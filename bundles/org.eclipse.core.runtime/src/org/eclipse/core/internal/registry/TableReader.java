@@ -235,9 +235,10 @@ public class TableReader {
 	private Extension basicLoadExtension() throws IOException {
 		int self = input.readInt();
 		String simpleId = readStringOrNull(input, false);
+		String namespace = readStringOrNull(input, false);
 		int[] children = readArray(input);
 		int extraData = input.readInt();
-		return new Extension(self, simpleId, children, extraData);
+		return new Extension(self, simpleId, namespace, children, extraData);
 	}
 
 	public ExtensionPoint loadExtensionPointTree(int offset, RegistryObjectManager objects) {
@@ -346,7 +347,7 @@ public class TableReader {
 	}
 
 	private String[] basicLoadExtensionExtraData() throws IOException {
-		return new String[] { readStringOrNull(extraInput, false), readStringOrNull(extraInput, false), readStringOrNull(extraInput, false) };
+		return new String[] { readStringOrNull(extraInput, false), readStringOrNull(extraInput, false) };
 	}
 
 	public String[] loadExtensionPointExtraData(int offset) {
