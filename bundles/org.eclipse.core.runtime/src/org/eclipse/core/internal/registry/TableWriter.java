@@ -101,7 +101,7 @@ public class TableWriter {
 		}
 		saveOrphans(objectManager);
 		saveNamespaces(objectManager.getContributions());
-
+		closeFiles();	//Close the files here so we can write the appropriate size information in the table file.
 		saveTables(objectManager, timestamp); //Write the table last so if that is something went wrong we can know
 	}
 
