@@ -15,7 +15,6 @@ import java.net.*;
 import java.util.*;
 import org.eclipse.core.boot.BootLoader;
 import org.eclipse.core.boot.IPlatformConfiguration;
-import org.eclipse.core.boot.IPlatformConfiguration.*;
 
 public class PlatformConfiguration implements IPlatformConfiguration {
 
@@ -722,7 +721,6 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			if (selector == null)
 				return null;
 			
-			int result;
 			String element;
 			for (int i=0; i<elements.size(); i++) {
 				// make pre-parse selector call
@@ -2185,9 +2183,13 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		if (initId != null) {
 			String application = loadAttribute(initProps, INIT_DEFAULT_FEATURE_APPLICATION, null);
 			IFeatureEntry fe = findConfiguredFeatureEntry(initId);
-			if (fe == null)
+			
+			if (fe == null){
+				// bug 26896 : setup optimistic reconciliation if the primary feature has changed or is new
+				cmdFirstUse = true;
 				// create entry if not exists
 				fe = createFeatureEntry(initId, null, null, true, application, null);
+			}
 			else 
 				// update existing entry with new info
 				fe = createFeatureEntry(initId, fe.getFeatureVersion(), fe.getFeaturePluginVersion(), fe.canBePrimary(), application, fe.getFeatureRootURLs());
