@@ -498,9 +498,8 @@ private static boolean checkVersionPrompt() {
 		return true;
 	
 	// run the version check ui class to prompt the user
-	String pluginId = "org.eclipse.ui.versioncheck"; //$NON-NLS-1$
-	String className = "org.eclipse.ui.internal.versioncheck.VersionCheck"; //$NON-NLS-1$
-	IPlatformRunnable runnable = loaderGetRunnable(pluginId, className, null);
+	String appId = "org.eclipse.ui.versioncheck.prompt"; //$NON-NLS-1$
+	IPlatformRunnable runnable = loaderGetRunnable(appId);
 	// If there is no UI to confirm the metadata version difference, then just proceed.		
 	if (runnable == null)
 		return true;
@@ -509,7 +508,7 @@ private static boolean checkVersionPrompt() {
 		return Boolean.TRUE.equals(result);
 	} catch (Exception e) {
 		// Fail silently since we don't have a UI, but don't proceed if we can't prompt the user.
-		log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, 1, Policy.bind("meta.versionCheckRun", className, pluginId), null)); //$NON-NLS-1$
+		log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, 1, Policy.bind("meta.versionCheckRun", appId), null)); //$NON-NLS-1$
 		return false;
 	}
 }
