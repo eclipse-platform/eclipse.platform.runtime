@@ -10,8 +10,6 @@
  *******************************************************************************/
 package org.eclipse.core.tests.harness;
 
-import org.eclipse.core.runtime.IProgressMonitor;
-
 public class CancelingProgressMonitor extends TestProgressMonitor {
 	/**
 	 * @see IProgressMonitor#isCanceled

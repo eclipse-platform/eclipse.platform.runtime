@@ -13,6 +13,7 @@ package org.eclipse.core.tests.harness;
 import java.io.*;
 import java.util.Enumeration;
 import java.util.Iterator;
+
 import junit.framework.TestFailure;
 
 /**

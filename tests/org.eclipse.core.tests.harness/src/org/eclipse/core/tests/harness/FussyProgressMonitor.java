@@ -11,7 +11,6 @@
 package org.eclipse.core.tests.harness;
 
 import junit.framework.AssertionFailedError;
-import org.eclipse.core.runtime.IProgressMonitor;
 
 /**
  * This class can be used for testing progress monitoring.
