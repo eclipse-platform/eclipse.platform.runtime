@@ -22,6 +22,8 @@ public class PlatformMetaArea {
 	/* package */ static final String F_BACKUP = ".bak";
 	/* package */ static final String F_OPTIONS = ".options";	
 	/* package */ static final String F_KEYRING = ".keyring";	
+	/* package */ static final String F_LOCK_FILE = ".lock";
+	
 /**
  * 
  */
