@@ -660,10 +660,6 @@ public class ExtensionRegistry implements IExtensionRegistry {
 			if (InternalPlatform.DEBUG)
 				start = System.currentTimeMillis();
 
-			boolean lazyLoading = !"true".equals(System.getProperty(InternalPlatform.PROP_NO_LAZY_CACHE_LOADING)); //$NON-NLS-1$
-			//			if (lazyLoading)
-			//				registryObjects = new EargetRegistryObjectManager();
-
 			//Find the cache in the local configuration area
 			File cacheFile = null;
 			FileManager currentFileManager = null;
