@@ -10,125 +10,81 @@
  *******************************************************************************/
 package org.eclipse.core.internal.registry;
 
-import java.util.MissingResourceException;
-import java.util.ResourceBundle;
-import org.eclipse.core.internal.runtime.ResourceTranslator;
-import org.eclipse.core.runtime.IExtension;
-import org.eclipse.core.runtime.IExtensionPoint;
 import org.osgi.framework.Bundle;
 
-/**
- * An object which represents the user-defined contents of a bundle model
- * in a extensions manifest.
- */
-public class Namespace extends NestedRegistryModelObject {
-	// null if this does not correspond to a fragment
-	private String hostId;
-	private IExtensionPoint[] extensionPoints;
-	private IExtension[] extensions;
-	private transient ResourceBundle resourceBundle;
-	private boolean missingResourceBundle = false;
-	private Bundle bundle; //Introduced to fix #46308
 
-	public String getUniqueIdentifier() {
-		return getName();
+public class Namespace implements KeyedElement {
+	static final int[] EMPTY_CHILDREN = new int[] {0, 0};
+	
+	// The bundle contributing the object.
+	private Bundle contributingBundle;
+	private long contributingBundleId;
+	
+	//The children of the element
+	//Here children is used to store both extension points and extensions.
+	//The array always a minimum size of 2. The first two values indicate the number of extension points and the number of extensions.
+	private int[] children = EMPTY_CHILDREN;
+	static final byte EXTENSION_POINT = 0;
+	static final byte EXTENSION = 1;
+	
+	Namespace(Bundle bundle) {
+		contributingBundle = bundle;
+		contributingBundleId = bundle.getBundleId();
+	}
+	
+	Namespace(long id) {
+		contributingBundleId = id;
+	}
+	
+	void setRawChildren(int[] children) {
+		this.children = children;
 	}
 
-	public void setUniqueIdentifier(String value) {
-		setName(value);
+	int[] getRawChildren() {
+		return children;
+	}
+	
+	int[] getExtensions() {
+		int[] results = new int[children[EXTENSION]];
+		System.arraycopy(children, 2 + children[EXTENSION_POINT], results, 0, children[EXTENSION]);
+		return results;
 	}
 
-	public void setExtensions(IExtension[] value) {
-		extensions = value;
+	Bundle getContributingBundle() {
+		return contributingBundle;
+	}
+	
+	int[] getExtensionPoints() {
+		int[] results = new int[children[EXTENSION_POINT]];
+		System.arraycopy(children, 2, results, 0, children[EXTENSION_POINT]);
+		return results;
 	}
 
-	public IExtension getExtension(String id) {
-		if (id == null)
-			return null;
-		IExtension[] list = getExtensions();
-		if (list == null)
-			return null;
-		for (int i = 0; i < list.length; i++) {
-			if (id.equals(list[i].getSimpleIdentifier()))
-				return list[i];
-		}
-		return null;
+	String getUniqueIdentifier() {
+//		if (Platform.isFragment(contributingBundle))
+//			return Platform.getHosts(contributingBundle)[0].getSymbolicName();
+		return contributingBundle.getSymbolicName();
 	}
-
-	public IExtension[] getExtensions() {
-		return extensions == null ? new IExtension[0] : extensions;
-	}
-
-	public void setExtensionPoints(IExtensionPoint[] value) {
-		extensionPoints = value;
-	}
-
-	public IExtensionPoint getExtensionPoint(String xpt) {
-		if (xpt == null)
-			return null;
-		IExtensionPoint[] list = getExtensionPoints();
-		if (list == null)
-			return null;
-		for (int i = 0; i < list.length; i++) {
-			if (xpt.equals(list[i].getSimpleIdentifier()))
-				return list[i];
-		}
-		return null;
-	}
-
-	public IExtensionPoint[] getExtensionPoints() {
-		return extensionPoints == null ? new IExtensionPoint[0] : extensionPoints;
-	}
-
-	public void setHostIdentifier(String value) {
-		hostId = value;
-	}
-
-	public String getHostIdentifier() {
-		return hostId;
-	}
-
-	public boolean isFragment() {
-		return hostId != null;
+	
+	boolean isFragment() {
+		return false;
+//		return Platform.isFragment(contributingBundle);
 	}
 
 	public String toString() {
-		return "Namespace: " + getName(); //$NON-NLS-1$
+		return "Namespace: " + getUniqueIdentifier(); //$NON-NLS-1$
 	}
 
-	public long getId() {
-		// returns an invalid id, but avoids NPE
-		return bundle == null ? -1 : bundle.getBundleId();
+	//Implements the KeyedElement interface
+	public int getKeyHashCode() {
+		return getKey().hashCode();
 	}
-
-	public Bundle getBundle() {
-		return bundle;
+	
+	public Object getKey() {
+		return new Long(contributingBundleId);
 	}
-
-	public void setBundle(Bundle value) {
-		bundle = value;
-	}
-
-	public String getResourceString(String value) {
-		if (resourceBundle != null)
-			return ResourceTranslator.getResourceString(null, value, resourceBundle);
-
-		if (missingResourceBundle)
-			return value;
-
-		if (resourceBundle == null) {
-			try {
-				resourceBundle = ResourceTranslator.getResourceBundle(bundle);
-			} catch (MissingResourceException e) {
-				resourceBundle = null;
-			}
-		}
-
-		if (resourceBundle == null) {
-			missingResourceBundle = true;
-			return value;
-		}
-
-		return ResourceTranslator.getResourceString(null, value, resourceBundle);
+	
+	public boolean compare(KeyedElement other) {
+		return contributingBundle == ((Namespace) other).contributingBundle;
 	}
 }

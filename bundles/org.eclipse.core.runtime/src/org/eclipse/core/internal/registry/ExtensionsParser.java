@@ -35,7 +35,6 @@ public class ExtensionsParser extends DefaultHandler {
 	 */
 	private static void initializeExtensionPointMap() {
 		Map map = new HashMap(13);
-		// TODO should this be hard coded? can we use a properties file?
 		map.put("org.eclipse.ui.markerImageProvider", "org.eclipse.ui.ide.markerImageProvider"); //$NON-NLS-1$ //$NON-NLS-2$
 		map.put("org.eclipse.ui.markerHelp", "org.eclipse.ui.ide.markerHelp"); //$NON-NLS-1$ //$NON-NLS-2$
 		map.put("org.eclipse.ui.markerImageProviders", "org.eclipse.ui.ide.markerImageProviders"); //$NON-NLS-1$ //$NON-NLS-2$
@@ -73,8 +72,14 @@ public class ExtensionsParser extends DefaultHandler {
 	// A status for holding results.
 	private MultiStatus status;
 
+	// Resource bundle used to translate the content of the plugin.xml
 	private ResourceBundle resources;
 
+	// Keep track of the object encountered.
+	private RegistryObjectManager objectManager;
+	
+	private Namespace namespace;
+	
 	/** 
 	 * Status code constant (value 1) indicating a problem in a bundle extensions
 	 * manifest (<code>extensions.xml</code>) file.
@@ -152,7 +157,7 @@ public class ExtensionsParser extends DefaultHandler {
 				if (value.trim().length() != 0)
 					currentConfigElement.setValue(translate(value));
 			} else {
-				currentConfigElement.setValue(oldValue + value);
+				currentConfigElement.setValue(translate(oldValue + value));
 			}
 		}
 	}
@@ -175,19 +180,29 @@ public class ExtensionsParser extends DefaultHandler {
 					stateStack.pop();
 					Namespace root = (Namespace) objectStack.peek();
 
-					// Put the extension points into this bundle model
 					ArrayList extensionPoints = scratchVectors[EXTENSION_POINT_INDEX];
+					ArrayList extensions = scratchVectors[EXTENSION_INDEX];
+					int[] namespaceChildren = new int[2 + extensionPoints.size() + extensions.size()];
+					int position = 2;
+					// Put the extension points into this namespace
 					if (extensionPoints.size() > 0) {
-						root.setExtensionPoints((ExtensionPoint[]) extensionPoints.toArray(new ExtensionPoint[extensionPoints.size()]));
-						scratchVectors[EXTENSION_POINT_INDEX].clear();
+						namespaceChildren[Namespace.EXTENSION_POINT] = extensionPoints.size();
+						for (Iterator iter = extensionPoints.iterator(); iter.hasNext();) {
+							namespaceChildren[position++] = ((NestedRegistryModelObject) iter.next()).getObjectId();
+						}
+						extensionPoints.clear();
 					}
 
-					// Put the extensions into this bundle model too
-					ArrayList extensions = scratchVectors[EXTENSION_INDEX];
+					// Put the extensions into this namespace too
 					if (extensions.size() > 0) {
-						root.setExtensions(fixRenamedExtensionPoints((Extension[]) extensions.toArray(new Extension[extensions.size()])));
-						scratchVectors[EXTENSION_INDEX].clear();
+						Extension[] renamedExtensions = fixRenamedExtensionPoints((Extension[]) extensions.toArray(new Extension[extensions.size()]));
+						namespaceChildren[Namespace.EXTENSION] = renamedExtensions.length;
+						for (int i = 0; i < renamedExtensions.length; i++) {
+							namespaceChildren[position++] = renamedExtensions[i].getObjectId();
+						}
+						extensions.clear();
 					}
+					root.setRawChildren(namespaceChildren);
 				}
 				break;
 			case BUNDLE_EXTENSION_POINT_STATE :
@@ -201,7 +216,8 @@ public class ExtensionsParser extends DefaultHandler {
 					// Finish up extension object
 					Extension currentExtension = (Extension) objectStack.pop();
 					Namespace parent = (Namespace) objectStack.peek();
-					currentExtension.setParent(parent);
+					//TODO Need to check if this is the correct value for fragments
+					currentExtension.setNamespace(parent.getContributingBundle().getSymbolicName());
 					scratchVectors[EXTENSION_INDEX].add(currentExtension);
 				}
 				break;
@@ -216,28 +232,18 @@ public class ExtensionsParser extends DefaultHandler {
 					currentConfigElement.setValue(value.trim());
 				}
 
-				Object parent = objectStack.peek();
-				currentConfigElement.setParent((RegistryModelObject) parent);
-				if (((Integer) stateStack.peek()).intValue() == BUNDLE_EXTENSION_STATE) {
-					// Want to add this configuration element to the subelements of an extension
-					IConfigurationElement[] oldValues = ((Extension) parent).getConfigurationElements();
-					int size = (oldValues == null) ? 0 : oldValues.length;
-					IConfigurationElement[] newValues = new IConfigurationElement[size + 1];
-					for (int i = 0; i < size; i++) {
-						newValues[i] = oldValues[i];
-					}
-					newValues[size] = currentConfigElement;
-					((Extension) parent).setSubElements(newValues);
-				} else {
-					IConfigurationElement[] oldValues = ((ConfigurationElement) parent).getChildren();
-					int size = (oldValues == null) ? 0 : oldValues.length;
-					IConfigurationElement[] newValues = new IConfigurationElement[size + 1];
-					for (int i = 0; i < size; i++) {
-						newValues[i] = oldValues[i];
-					}
-					newValues[size] = currentConfigElement;
-					((ConfigurationElement) parent).setChildren(newValues);
+				NestedRegistryModelObject parent = (NestedRegistryModelObject) objectStack.peek();
+				// Want to add this configuration element to the subelements of an extension
+				int[] oldValues = parent.getRawChildren();
+				int size = (oldValues == null) ? 0 : oldValues.length;
+				int[] newValues = new int[size + 1];
+				for (int i = 0; i < size; i++) {
+					newValues[i] = oldValues[i];
 				}
+				newValues[size] = currentConfigElement.getObjectId();
+				parent.setRawChildren(newValues);
+				currentConfigElement.setParentId(parent.getObjectId());
+				currentConfigElement.setParentType(parent instanceof ConfigurationElement ? RegistryObjectManager.CONFIGURATION_ELEMENT : RegistryObjectManager.EXTENSION);
 				break;
 		}
 	}
@@ -269,6 +275,7 @@ public class ExtensionsParser extends DefaultHandler {
 
 		// create a new Configuration Element and push it onto the object stack
 		ConfigurationElement currentConfigurationElement = new ConfigurationElement();
+		currentConfigurationElement.setContributingBundle(namespace.getContributingBundle());
 		objectStack.push(currentConfigurationElement);
 		currentConfigurationElement.setName(elementName);
 
@@ -277,6 +284,7 @@ public class ExtensionsParser extends DefaultHandler {
 		// property with the name/value pair of the attribute.  Note there will be one
 		// configuration property for each attribute
 		parseConfigurationElementAttributes(attributes);
+		objectManager.add(currentConfigurationElement, true);
 	}
 
 	private void handleInitialState(String elementName, Attributes attributes) {
@@ -289,24 +297,7 @@ public class ExtensionsParser extends DefaultHandler {
 		// in compatibility mode, any extraneous elements will be silently ignored
 		compatibilityMode = !(elementName.equals(PLUGIN) && attributes.getLength() == 0);
 		stateStack.push(new Integer(BUNDLE_STATE));
-		Namespace current = new Namespace();
-		objectStack.push(current);
-	}
-
-	/**
-	 * convert a list of comma-separated tokens into an array
-	 */
-	protected static String[] getArrayFromList(String line) {
-		if (line == null || line.trim().length() == 0)
-			return null;
-		Vector list = new Vector();
-		StringTokenizer tokens = new StringTokenizer(line, ","); //$NON-NLS-1$
-		while (tokens.hasMoreTokens()) {
-			String token = tokens.nextToken().trim();
-			if (token.length() != 0)
-				list.addElement(token);
-		}
-		return list.isEmpty() ? null : (String[]) list.toArray(new String[0]);
+		objectStack.push(namespace);
 	}
 
 	private void handleBundleState(String elementName, Attributes attributes) {
@@ -346,9 +337,12 @@ public class ExtensionsParser extends DefaultHandler {
 		error(new Status(IStatus.WARNING, Platform.PI_RUNTIME, PARSE_PROBLEM, msg, ex));
 	}
 
-	public Namespace parseManifest(ServiceTracker factoryTracker, InputSource in, String manifestType, String manifestName, ResourceBundle bundle) throws ParserConfigurationException, SAXException, IOException {
+	public Namespace parseManifest(ServiceTracker factoryTracker, InputSource in, String manifestKind, String manifestName, RegistryObjectManager registryObjects, Namespace currentNamespace, ResourceBundle bundle) throws ParserConfigurationException, SAXException, IOException {
 		long start = 0;
 		this.resources = bundle;
+		this.objectManager = registryObjects;
+		//initialize the parser with this object
+		this.namespace = currentNamespace;
 		if (InternalPlatform.DEBUG)
 			start = System.currentTimeMillis();
 		
@@ -358,11 +352,11 @@ public class ExtensionsParser extends DefaultHandler {
 			throw new SAXException(Policy.bind("parse.xmlParserNotAvailable")); //$NON-NLS-1$
 
 		try {
-			if (manifestType == null)
+			if (manifestKind == null)
 				throw new NullPointerException();
-			if (!(manifestType.equals(PLUGIN) || manifestType.equals(FRAGMENT)))
+			if (!(manifestKind.equals(PLUGIN) || manifestKind.equals(FRAGMENT)))
 				throw new IllegalArgumentException("Invalid manifest type: " + manifestType); //$NON-NLS-1$
-			this.manifestType = manifestType;
+			this.manifestType = manifestKind;
 			locationName = in.getSystemId();
 			if (locationName == null)
 				locationName = manifestName;
@@ -385,28 +379,23 @@ public class ExtensionsParser extends DefaultHandler {
 
 	private void parseConfigurationElementAttributes(Attributes attributes) {
 		ConfigurationElement parentConfigurationElement = (ConfigurationElement) objectStack.peek();
-		Vector propVector = null;
 
 		// process attributes
 		int len = (attributes != null) ? attributes.getLength() : 0;
-		if (len == 0)
+		if (len == 0) {
+			parentConfigurationElement.setProperties(RegistryObjectManager.EMPTY_STRING_ARRAY);
 			return;
-		propVector = new Vector();
-		for (int i = 0; i < len; i++) {
-			String attrName = attributes.getLocalName(i);
-			String attrValue = attributes.getValue(i);
-
-			ConfigurationProperty currentConfigurationProperty = new ConfigurationProperty();
-			currentConfigurationProperty.setName(attrName);
-			currentConfigurationProperty.setValue(translate(attrValue));
-			propVector.addElement(currentConfigurationProperty);
 		}
-		parentConfigurationElement.setProperties((ConfigurationProperty[]) propVector.toArray(new ConfigurationProperty[propVector.size()]));
-		propVector = null;
+		String[] properties = new String[len*2];
+		for (int i = 0; i < len; i++) {
+			properties[i*2] = attributes.getLocalName(i);
+			properties[i*2 + 1] = translate(attributes.getValue(i));
+		}
+		parentConfigurationElement.setProperties(properties);
+		properties = null;
 	}
 
 	private void parseExtensionAttributes(Attributes attributes) {
-		Namespace parent = (Namespace) objectStack.peek();
 		Extension currentExtension = new Extension();
 		objectStack.push(currentExtension);
 
@@ -417,14 +406,14 @@ public class ExtensionsParser extends DefaultHandler {
 			String attrValue = attributes.getValue(i).trim();
 
 			if (attrName.equals(EXTENSION_NAME))
-				currentExtension.setName(translate(attrValue));
+				currentExtension.setLabel(translate(attrValue));
 			else if (attrName.equals(EXTENSION_ID))
 				currentExtension.setSimpleIdentifier(attrValue);
 			else if (attrName.equals(EXTENSION_TARGET)) {
 				// check if point is specified as a simple or qualified name
 				String targetName;
-				if (attrValue.lastIndexOf('.') == -1) {
-					String baseId = parent.getName();
+				if (attrValue.lastIndexOf('.') == -1) {	
+					String baseId = namespace.getUniqueIdentifier();
 					targetName = baseId + "." + attrValue; //$NON-NLS-1$
 				} else
 					targetName = attrValue;
@@ -432,7 +421,7 @@ public class ExtensionsParser extends DefaultHandler {
 			} else
 				unknownAttribute(EXTENSION, attrName); //$NON-NLS-1$
 		}
-		if (currentExtension.getExtensionPointUniqueIdentifier() == null) {
+		if (currentExtension.getExtensionPointIdentifier() == null) {
 			missingAttribute(EXTENSION_TARGET, EXTENSION);
 			stateStack.pop();
 			stateStack.push(new Integer(IGNORED_ELEMENT_STATE));
@@ -440,6 +429,7 @@ public class ExtensionsParser extends DefaultHandler {
 			return;
 		}
 
+		objectManager.add(currentExtension, true);
 	}
 
 	private void missingAttribute(String attribute, String element) {
@@ -473,15 +463,17 @@ public class ExtensionsParser extends DefaultHandler {
 			String attrValue = attributes.getValue(i).trim();
 
 			if (attrName.equals(EXTENSION_POINT_NAME))
-				currentExtPoint.setName(translate(attrValue));
-			else if (attrName.equals(EXTENSION_POINT_ID))
-				currentExtPoint.setSimpleIdentifier(attrValue);
+				currentExtPoint.setLabel(translate(attrValue));
+			else if (attrName.equals(EXTENSION_POINT_ID)) {
+				Namespace root = (Namespace) objectStack.peek();
+				currentExtPoint.setUniqueIdentifier(root.getUniqueIdentifier() + '.' + attrValue);
+			}
 			else if (attrName.equals(EXTENSION_POINT_SCHEMA))
 				currentExtPoint.setSchema(attrValue);
 			else
 				unknownAttribute(EXTENSION_POINT, attrName); //$NON-NLS-1$
 		}
-		if (currentExtPoint.getSimpleIdentifier() == null || currentExtPoint.getName() == null) {
+		if (currentExtPoint.getSimpleIdentifier() == null || currentExtPoint.getLabel() == null) {
 			String attribute = currentExtPoint.getSimpleIdentifier() == null ? EXTENSION_POINT_ID : EXTENSION_POINT_NAME;
 			missingAttribute(attribute, EXTENSION_POINT);
 			stateStack.pop();
@@ -489,9 +481,11 @@ public class ExtensionsParser extends DefaultHandler {
 			return;
 		}
 
-		// currentExtPoint contains a pointer to the parent bundle model.
+		objectManager.addExtensionPoint(currentExtPoint, true);
 		Namespace root = (Namespace) objectStack.peek();
-		currentExtPoint.setParent(root);
+		//TODO Need to verify for fragments
+		currentExtPoint.setNamespace(root.getContributingBundle().getSymbolicName());
+		currentExtPoint.setBundleId(root.getContributingBundle().getBundleId());
 
 		// Now populate the the vector just below us on the objectStack with this extension point
 		scratchVectors[EXTENSION_POINT_INDEX].add(currentExtPoint);

@@ -13,35 +13,42 @@ package org.eclipse.core.internal.registry;
 /**
  * An object which has the general characteristics of all the nestable elements
  * in a plug-in manifest.
- * <p>
- * This class may be subclassed.
- * </p>
  */
-
-public abstract class NestedRegistryModelObject extends RegistryModelObject {
-	private RegistryModelObject parent;
-
-	/**
-	 * Returns the plug-in model (descriptor or fragment) in which this extension is declared.
-	 *
-	 * @return the plug-in model in which this extension is declared
-	 *  or <code>null</code>
-	 */
-	public Object getParent() {
-		return parent;
+public abstract class NestedRegistryModelObject implements KeyedElement {
+	//Object identifier
+	protected int objectId = RegistryObjectManager.UNKNOWN;
+	//The children of the element
+	protected int[] children = RegistryObjectManager.EMPTY_INT_ARRAY;
+	//The position of the extra data when available
+	protected int extraDataOffset = -1;
+	
+	void setRawChildren(int[] values) {
+		children = values;
+	}
+	
+	int[] getRawChildren() {
+		return children;
 	}
 
-	/**
-	 * Sets the plug-in model in which this extension is declared.
-	 *
-	 * @param value the plug-in model in which this extension is declared.  
-	 *		May be <code>null</code>.
-	 */
-	public void setParent(RegistryModelObject value) {
-		parent = value;
+	void setObjectId(int value) {
+		objectId = value;
 	}
-
-	ExtensionRegistry getRegistry() {
-		return parent == null ? null : parent.getRegistry();
+	
+	int getObjectId() {
+		return objectId;
 	}
+	
+	//Implementation of the KeyedElement interface
+	public int getKeyHashCode() {
+		return objectId;
+	}
+	
+	public Object getKey() {
+		return new Integer(objectId);
+	}
+	
+	public boolean compare(KeyedElement other) {
+		return objectId == ((NestedRegistryModelObject) other).objectId;
+	}
+	
 }

@@ -224,4 +224,6 @@ public interface IConfigurationElement {
 	 * @return the untranslated text value of this configuration element or <code>null</code>
 	 */
 	public String getValueAsIs();
+	
+	public String getNamespace();
 }

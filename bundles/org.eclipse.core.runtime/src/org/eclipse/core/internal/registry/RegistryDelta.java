@@ -20,10 +20,19 @@ import org.eclipse.core.runtime.IExtensionDelta;
  */
 public class RegistryDelta {
 	private Set extensionDeltas = new HashSet();
-	private String hostName;
+	private long bundle;
+	private List removedExtensionPoints = new ArrayList(3);
+	
+	RegistryDelta(long bundleId) {
+		this.bundle = bundleId;
+	}
 
-	RegistryDelta(String hostName) {
-		this.hostName = hostName;
+	public void addRemovedExtensionPoints(String value) {
+		removedExtensionPoints.add(value);
+	}
+
+	public List removedExtensionPoints() {
+		return removedExtensionPoints;
 	}
 
 	public int getExtensionDeltasCount() {
@@ -31,7 +40,7 @@ public class RegistryDelta {
 	}
 
 	public IExtensionDelta[] getExtensionDeltas() {
-		return (IExtensionDelta[]) extensionDeltas.toArray(new IExtensionDelta[extensionDeltas.size()]);
+		return (IExtensionDelta[]) extensionDeltas.toArray(new ExtensionDelta[extensionDeltas.size()]);
 	}
 
 	public IExtensionDelta[] getExtensionDeltas(String extensionPoint) {
@@ -63,7 +72,16 @@ public class RegistryDelta {
 	}
 
 	public String toString() {
-		return "\n\tHost " + hostName + ": " + extensionDeltas; //$NON-NLS-1$//$NON-NLS-2$
+		return "\n\tHost " + bundle + ": " + extensionDeltas; //$NON-NLS-1$//$NON-NLS-2$
 	}
+
+	public long getBundleId() {
+		return bundle;
+	}
+	//	String getNamespace() {
+	//		if (Platform.isFragment(bundle))
+	//			return Platform.getHosts(bundle)[0].getSymbolicName();
+	//		return bundle.getSymbolicName();
+	//	}
 
 }

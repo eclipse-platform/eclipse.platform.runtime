@@ -89,20 +89,20 @@ public class EclipseBundleListener implements SynchronousBundleListener {
 	}
 
 	private void removeBundle(Bundle bundle) {
-		registry.remove(bundle.getSymbolicName(), bundle.getBundleId());		
+		registry.remove(bundle.getBundleId());		
 	}
 
 	private void addBundle(Bundle bundle) {
 		// if the given bundle already exists in the registry then return.
 		// note that this does not work for update cases.
-		if (registry.getNamespace(bundle.getSymbolicName()) != null)
+		if (registry.hasNamespace(bundle.getBundleId()))	
 			return;
 		Namespace bundleModel = getBundleModel(bundle);
 		if (bundleModel == null)
 			return;
 		// bug 70941
 		// need to ensure we can find resource bundles from fragments 
-		if (Platform.PI_RUNTIME.equals(bundleModel.getHostIdentifier()))
+		if (Platform.PI_RUNTIME.equals(bundleModel.getUniqueIdentifier()))
 			Policy.forgetResourceBundle();
 		// Do not synchronize on registry here because the registry handles
 		// the synchronization for us in registry.add		
@@ -145,14 +145,8 @@ public class EclipseBundleListener implements SynchronousBundleListener {
 				//Ignore the exception
 			}
 			ExtensionsParser parser = new ExtensionsParser(problems);
-			Namespace bundleModel = parser.parseManifest(xmlTracker, new InputSource(is), manifestType, manifestName, b);
-			bundleModel.setUniqueIdentifier(bundle.getSymbolicName());
-			bundleModel.setBundle(bundle);
-			if (isFragment) {
-				Bundle[] hosts = InternalPlatform.getDefault().getHosts(bundle);
-				if (hosts != null && hosts.length > 0)
-					bundleModel.setHostIdentifier(hosts[0].getSymbolicName());
-			}
+			Namespace bundleModel = new Namespace(bundle); 
+			parser.parseManifest(xmlTracker, new InputSource(is), manifestType, manifestName, registry.getObjectManager(), bundleModel, b);
 			if (problems.getSeverity() != IStatus.OK)
 				InternalPlatform.getDefault().log(problems);
 			return bundleModel;
