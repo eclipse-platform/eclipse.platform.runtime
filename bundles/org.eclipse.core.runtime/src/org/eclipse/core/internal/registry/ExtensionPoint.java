@@ -21,14 +21,14 @@ public class ExtensionPoint extends NestedRegistryModelObject {
 	public static final ExtensionPoint[] EMPTY_ARRAY = new ExtensionPoint[0];
 
 	//Place holder for the label and the schema. It contains either a String[] or a SoftReference to a String[].
-	//The array layout is [label, schemaReference, fullyQualifiedName]
+	//The array layout is [label, schemaReference, fullyQualifiedName, namespace, bundleId]
 	private Object extraInformation;
 	//Indexes of the various fields
-	private static final byte LABEL = 0;
-	private static final byte SCHEMA = 1;
-	private static final byte QUALIFIED_NAME = 2;
-	private static final byte NAMESPACE = 3;
-	private static final byte BUNDLEID = 4;
+	private static final byte LABEL = 0; //The human readable name for the extension point
+	private static final byte SCHEMA = 1; //The schema of the extension point
+	private static final byte QUALIFIED_NAME = 2; //The fully qualified name of the extension point
+	private static final byte NAMESPACE = 3; //The name of the bundle contributing the extension point
+	private static final byte BUNDLEID = 4; //The bundle contributing the extension point
 	private static final int EXTRA_SIZE = 5;
 	
 	ExtensionPoint() {
