@@ -288,28 +288,26 @@ public interface IPlatformConfiguration {
 	 * @since 2.0
 	 */
 	public long getPluginsChangeStamp();	
-	
-	/**
-	 * Indicates that feature changes have been processed and the corresponding plug-ins
-	 * have been configured into this configuration. Making this call causes the 
-	 * configuration change stamps to be "hardened" when the configuration is saved.
-	 * If this method is not called, the change stamps are not "hardened" when the 
-	 * configuration is saved. This will cause the changes to be detected again next
-	 * time the configuration is recreated.
-	 * 
-	 * @since 2.0
-	 */
-	public void setFeatureChangesConfigured();		
-	
+			
 	/**
 	 * Returns the identifier of the configured application. The identifier must
 	 * represent a valid extension registered in the 
 	 * <code>org.eclipse.core.runtime.applications</code> extension point.
 	 * 
-	 * @param feature optional identifier for the primary feature. If specified,
-	 * the application for the feature is returned. If <code>null</code>, or the
-	 * specified feature is not defined, return the default Eclipse application.
-	 * @return an array of plug-in path elements (full URL entries), or an empty array.
+	 * @return application identifier. Returns the default Eclipse application
+	 * if none is configured.
+	 * @since 2.0
+	 */
+	public String getApplicationIdentifier();			
+	
+	/**
+	 * Returns the identifier of the application for the specified feature.
+	 * The identifier must represent a valid extension registered in the 
+	 * <code>org.eclipse.core.runtime.applications</code> extension point.
+	 * 
+	 * @param feature optional identifier for the primary feature.
+	 * @return application identifier for the feature. If feature was <code>null</code>,
+	 * or the specified feature is not defined, return <code>null</code>.
 	 * @since 2.0
 	 */
 	public String getApplicationIdentifier(String feature);			

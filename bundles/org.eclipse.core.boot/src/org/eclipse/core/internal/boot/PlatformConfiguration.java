@@ -48,6 +48,11 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	private long pluginsChangeStamp;
 	private boolean pluginsChangeStampIsValid = false;
 	private boolean featureChangesConfigured = false;
+	
+	private static String cmdConfiguration;
+	private static String cmdFeature;
+	private static String cmdApplication;
+	private static URL cmdPlugins;
 
 	static boolean DEBUG = false;
 
@@ -96,6 +101,11 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	private static final String LINK_PATH = "path";
 	private static final String LINK_READ = "r";
 	private static final String LINK_READ_WRITE = "rw";
+	
+	private static final String CMD_CONFIGURATION = "-configuration";
+	private static final String CMD_FEATURE = "-feature";
+	private static final String CMD_APPLICATION = "-application";
+	private static final String CMD_PLUGINS = "-plugins";
 	
 	public class SiteEntry implements IPlatformConfiguration.ISiteEntry {
 
@@ -381,7 +391,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		private boolean isExternallyLinkedSite() {
 			return (linkFileName!=null && !linkFileName.trim().equals(""));
 		}
-}
+	}
 
 	public class SitePolicy implements IPlatformConfiguration.ISitePolicy {
 
@@ -426,6 +436,97 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 				this.list = list;
 		}
 
+	}
+	
+	private class VersionedIdentifier {
+		private String identifier = "";		
+		private int major = 0;
+		private int minor = 0;
+		private int service = 0;
+		private String qualifier = "";
+	
+		private static final String VER_SEPARATOR = ".";
+		private static final String ID_SEPARATOR = "_";
+		
+		public VersionedIdentifier(String s) {		
+			if (s==null || (s=s.trim()).equals("")) 
+				return;
+		
+			int loc = s.lastIndexOf(ID_SEPARATOR);
+			if (loc != -1) {
+				this.identifier = s.substring(0, loc);
+				String version = s.substring(loc+1);
+				parseVersion(version);
+			} else
+			 this.identifier = s;		
+		}
+		
+		public boolean identifierEquals(String id) {
+			if (id == null)
+				return identifier == null;
+			else
+				return id.equals(identifier);
+		}		
+		
+		public int compareVersion(VersionedIdentifier id) {
+
+			if (id == null) {
+				if (major==0 && minor==0 && service==0) return -1;
+				else return 1;
+			}
+
+			if (major > id.major) return 1;
+			if (major < id.major) return -1;
+			if (minor > id.minor) return 1;
+			if (minor < id.minor) return -1;	
+			if (service > id.service) return 1;
+			if (service < id.service) return -1;
+			return compareQualifiers(qualifier, id.qualifier);
+		}
+
+		private int compareQualifiers(String q1, String q2) {
+			int result = q1.compareTo(q2);
+			if (result<0)
+				return -1;
+			else if (result>0)
+				return 1;
+			else
+				return 0;
+		}	
+		
+		private void parseVersion(String v) {				
+			if( v == null || (v=v.trim()).equals(""))
+				return;
+		
+			try{
+				StringTokenizer st = new StringTokenizer(v, VER_SEPARATOR);
+				Integer token;
+				ArrayList elements = new ArrayList(4);
+
+				while(st.hasMoreTokens()) {
+					elements.add(st.nextToken());
+				}
+
+				if (elements.size()>=1) this.major = (new Integer((String)elements.get(0))).intValue();
+				if (elements.size()>=2) this.minor = (new Integer((String)elements.get(1))).intValue();
+				if (elements.size()>=3) this.service = (new Integer((String)elements.get(2))).intValue();
+				if (elements.size()>=4) this.qualifier = removeWhiteSpace((String)elements.get(3));
+		
+			} catch (Exception e) { // use what we got so far
+			}
+		}
+		
+		private String removeWhiteSpace(String s) {
+			char[] chars = s.trim().toCharArray();
+			boolean whitespace = false;
+			for(int i=0; i<chars.length; i++) {
+				if (Character.isWhitespace(chars[i])) {
+					chars[i] = '_';
+					whitespace = true;
+				}
+			}
+			return whitespace ? new String(chars) : s;
+		}
 	}
 
 	private PlatformConfiguration(String configArg) throws IOException {
@@ -513,9 +614,10 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		if (entry == null)
 			return;
 
-		URL key = entry.getURL();
-		if (key == null)
+		URL url = entry.getURL();
+		if (url == null)
 			return;
+		String key = url.toExternalForm();
 
 		if (sites.containsKey(key) && !replace)
 			return;
@@ -530,9 +632,10 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		if (entry == null)
 			return;
 
-		URL key = entry.getURL();
-		if (key == null)
+		URL url = entry.getURL();
+		if (url == null)
 			return;
+		String key = url.toExternalForm();
 
 		sites.remove(key);
 	}
@@ -553,8 +656,9 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	public ISiteEntry findConfiguredSite(URL url) {
 		if (url == null)
 			return null;
+		String key = url.toExternalForm();
 
-		return (ISiteEntry) sites.get(url);
+		return (ISiteEntry) sites.get(key);
 	}
 
 	/*
@@ -592,26 +696,44 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	}
 	
 	/*
-	 * @see IPlatformConfiguration#setFeatureChangesConfigured()
+	 * @see IPlatformConfiguration#getApplication()
 	 */
-	public void setFeatureChangesConfigured() {
-		featureChangesConfigured = true;
+	public String getApplicationIdentifier() {
+		// FIXME: change to use configured information
+		if (cmdApplication != null && !cmdApplication.equals(""))
+			return cmdApplication; // R1.0 compatibility			
+		else if (primaryFeatureApplication != null && !primaryFeatureApplication.equals(""))
+			return primaryFeatureApplication;
+		else
+			return DFLT_PRIMARY_FEATURE_APP;
 	}
 
 	/*
 	 * @see IPlatformConfiguration#getApplication(String)
 	 */
 	public String getApplicationIdentifier(String feature) {
-		// TBA: change to use configured information
-		return "org.eclipse.ui.workbench";
+		// FIXME: change to use configured information
+		if (feature == null)
+			return null;
+		else if (feature.equals(primaryFeature)) {
+			if (primaryFeatureApplication != null && !primaryFeatureApplication.equals(""))
+				return primaryFeatureApplication;
+			else 
+				return null;
+		}
+		else
+			return null;
 	}
 
 	/*
 	 * @see IPlatformConfiguration#getPrimaryFeature()
 	 */
 	public String getPrimaryFeatureIdentifier() {
-		// TBA: change to use configured information
-		return "org.eclipse.sdk";
+		// FIXME: change to use configured information
+		if (primaryFeature != null && !primaryFeature.equals(""))
+			return primaryFeature;
+		else
+			return DFLT_PRIMARY_FEATURE;
 	}
 
 	/*
@@ -708,9 +830,57 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		// class loaders must be created prior to the plugin registry being 
 		// available (ie. loaders needed to create the plugin registry)
 		// must be created 
+				
+		ISiteEntry[] sites = getConfiguredSites();
+		if (sites == null || sites.length == 0)
+			return null;
+				
+		// for now look for the "latest" version of the requested plugin
+		// using naming convention of the installer and the policy set for
+		// the site
+		// FIXME: the current code in this method implements the R1.0 "best guess"
+		//        algorithm
+		VersionedIdentifier savedVid = new VersionedIdentifier(null);
+		String savedEntry = null;
+		for (int j=0; j<sites.length; j++) {							
+			String[] plugins = sites[j].getPlugins();
+			for (int i=0; plugins!=null && i<plugins.length; i++) {
+				// look for best match. 
+				// The entries are in the form <path>/<pluginDir>/plugin.xml
+				// look for -------------------------^
+				int ix = findEntrySeparator(plugins[i],2); // second from end
+				if (ix == -1)
+					continue; // bad entry ... skip
+				String pluginDir = plugins[i].substring(ix+1);
+				ix = pluginDir.indexOf("/");
+				if (ix != -1)
+					pluginDir = pluginDir.substring(0,ix);
+				if (pluginDir.equals(""))
+					continue; // bad entry ... skip
+												
+				VersionedIdentifier vid = new VersionedIdentifier(pluginDir);
+				if (vid.identifierEquals(pluginId)) {
+					if (vid.compareVersion(savedVid) >= 0) {
+						savedVid = vid;
+						savedEntry = plugins[i];
+					}
+				}			
+			}				
+		}			
+
+		if (savedEntry == null)
+			return null;
+				
+		// callers are expecting a directory URL
+		if (!savedEntry.endsWith("/")) {
+			int ix = savedEntry.lastIndexOf("/");
+			if (ix == -1)
+				return null; // bad entry
+			savedEntry = savedEntry.substring(0,ix+1); // include trailing separator
+		}
+			
 		try {
-			// FIXME: for now assume "kernel" plugins must be co-located
-			return new URL(BootLoader.getInstallURL(),"plugins/"+pluginId+"/");
+			return new URL(BootLoader.getInstallURL(),savedEntry);
 		} catch(MalformedURLException e) {
 			return null;
 		}
@@ -720,16 +890,60 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		return currentPlatformConfiguration;
 	}
 	
-	static void startup(String configArg) throws IOException {			
+	/**
+	 * Create and initialize the current platform configuration
+	 * @param cmdArgs command line arguments (startup and boot arguments are
+	 * already consumed)
+	 * @param r10plugins plugin-path URL as passed on the BootLoader.run(...)
+	 * or BootLoader.startup(...) method. Supported for R1.0 compatibility
+	 * @param r10apps application identifies as passed on the BootLoader.run(...)
+	 * method. Supported for R1.0 compatibility.
+	 */
+	static synchronized String[] startup(String[] cmdArgs, URL r10plugins, String r10app) throws Exception {			
 		// for 1.0 compatibility
 		LaunchInfo.startup(null);
 		
+		// initialize command line settings
+		cmdConfiguration = null;
+		cmdFeature = null;
+		cmdApplication = null;
+		cmdPlugins = null;
+		cmdPlugins = r10plugins; // R1.0 compatibility
+		cmdApplication = r10app; // R1.0 compatibility
+		
+		String[] passthruArgs = processCommandLine(cmdArgs);
+		
+		// determine launch mode
+		if (cmdConfiguration == null && cmdPlugins != null) {
+			// R1.0 compatibility mode ... explicit plugin-path was specified.
+			// Convert the plugins path into a temporary configuration 
+			try {
+				cmdConfiguration = createConfigurationFromPlugins(cmdPlugins);
+			} catch (Exception e) {
+				if (DEBUG)
+					debug("Unable to use specified plugin-path: "+e);
+			}
+		}
+		
 		// create current configuration
 		if (currentPlatformConfiguration == null)
-			currentPlatformConfiguration = new PlatformConfiguration(configArg);
+			currentPlatformConfiguration = new PlatformConfiguration(cmdConfiguration);
+		
+		// determine current feature
+		// * -feature
+		// * from configuration
+		//
+		// determine current application
+		// * -application/ r10app
+		// * -feature -> its application
+		// * default from configuration
+		// * eclipse workbench
+		//
+		
+		return passthruArgs;
 	}
-	
-	static void shutdown() throws IOException {
+		
+	static synchronized void shutdown() throws IOException {
 		// for 1.0 compatibility
 		LaunchInfo.shutdown();
 		
@@ -1157,7 +1371,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		Properties initProps = new Properties();
 		InputStream is = null;
 		try {
-			URL initURL = new URL(url,CONFIG_FILE_INIT);
+			URL initURL = new URL(url,"../"+CONFIG_FILE_INIT);
 			is = initURL.openStream();
 			initProps.load(is);
 		} catch(IOException e) {
@@ -1275,6 +1489,204 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	private String escapedValue(String value) {
 		// FIXME: implement escaping for property file
 		return value;
+	}
+	
+	private static String[] processCommandLine(String[] args) throws Exception {
+		int[] configArgs = new int[100];
+		configArgs[0] = -1; // need to initialize the first element to something that could not be an index.
+		int configArgIndex = 0;
+		for (int i = 0; i < args.length; i++) {
+			boolean found = false;
+		
+			// check for args without parameters (i.e., a flag arg)
+		
+			// currently none defined for PlatformConfiguration
+		
+			if (found) {
+				configArgs[configArgIndex++] = i;
+				continue;
+			}
+		
+			// check for args with parameters. If we are at the last argument or if the next one
+			// has a '-' as the first character, then we can't have an arg with a parm so continue.
+		
+			if (i == args.length - 1 || args[i + 1].startsWith("-")) {
+				continue;
+			}
+		
+			String arg = args[++i];
+
+			// look for the platform configuration to use.
+			if (args[i - 1].equalsIgnoreCase(CMD_CONFIGURATION)) {
+				found = true;
+				cmdConfiguration = arg;
+			}
+
+			// look for the feature to use for customization.
+			if (args[i - 1].equalsIgnoreCase(CMD_FEATURE)) {
+				found = true;
+				cmdFeature = arg;
+			}
+
+			// look for the application to run.  Only use the value from the
+			// command line if the application identifier was not explicitly
+			// passed on BootLoader.run(...) invocation.
+			if (args[i - 1].equalsIgnoreCase(CMD_APPLICATION)) {
+				found = true;
+				if (cmdApplication == null)
+					cmdApplication = arg;
+			}
+
+			// R1.0 compatibility
+			// look for the plugins location to use.  Only use the value from the
+			// command line if the plugins location was not explicitly passed on
+			// BootLoader.run(...) or BootLoader.startup(...) invocation.
+			if (args[i - 1].equalsIgnoreCase(CMD_PLUGINS)) {
+				found = true;
+				// if the arg can be made into a URL use it.  Otherwise assume that
+				// it is a file path so make a file URL.
+				try {
+					if (cmdPlugins == null)
+						cmdPlugins = new URL(arg);
+				} catch (MalformedURLException e) {
+					try {
+						cmdPlugins = new URL("file:" + arg);
+					} catch (MalformedURLException e2) {
+					}
+				}
+			}
+
+			// done checking for args.  Remember where an arg was found 
+			if (found) {
+				configArgs[configArgIndex++] = i - 1;
+				configArgs[configArgIndex++] = i;
+			}
+		}
+
+		// remove all the arguments consumed by this argument parsing
+		if (configArgIndex == 0)
+			return args;
+		String[] passThruArgs = new String[args.length - configArgIndex];
+		configArgIndex = 0;
+		int j = 0;
+		for (int i = 0; i < args.length; i++) {
+			if (i == configArgs[configArgIndex])
+				configArgIndex++;
+			else
+				passThruArgs[j++] = args[i];
+		}
+		return passThruArgs;
+	}
+	
+	/*
+	 * R1.0 compatibility
+	 */
+	private static String createConfigurationFromPlugins(URL file) throws Exception {
+		// get the actual plugin path
+		URL[] pluginPath = BootLoader.getPluginPath(file);
+		if (pluginPath == null || pluginPath.length == 0)
+			return null;
+			
+		// create a temp configuration
+		PlatformConfiguration tempConfig = new PlatformConfiguration((URL)null);
+		for (int i=0; i<pluginPath.length; i++) {
+			String entry = pluginPath[i].toExternalForm();
+			String sitePortion;
+			String pluginPortion;
+			int ix;
+			if (entry.endsWith("/")) {
+				// assume directory path in the form <site>/plugins/
+				// look for -------------------------------^
+				ix = findEntrySeparator(entry,2); // second from end
+				sitePortion = entry.substring(0,ix+1);
+				pluginPortion = entry.substring(ix+1);
+				if (!pluginPortion.equals("plugins/"))
+					continue; // unsupported entry ... skip it ("fragments/" are handled)
+				pluginPortion = null;
+			} else {
+				// assume full path in the form <site>/<pluginsDir>/<some.plugin>/plugin.xml
+				// look for --------------------------^
+				ix = findEntrySeparator(entry, 3); // third from end
+				sitePortion = entry.substring(0,ix+1);
+				pluginPortion = entry.substring(ix+1);
+			}
+			if (ix == -1)
+				continue; // bad entry ... skip it
+				
+			URL siteURL = null;
+			try {
+				siteURL = new URL(sitePortion);
+			} catch (MalformedURLException e) {
+				continue; // bad entry ... skip it
+			}
+			
+			// configure existing site or create a new one for the entry
+			ISiteEntry site = tempConfig.findConfiguredSite(siteURL);
+			ISitePolicy policy;
+			if (site == null) {
+				// new site
+				if (pluginPortion == null) 
+					policy = tempConfig.createSitePolicy(ISitePolicy.USER_EXCLUDE, null);
+				else 
+					policy = tempConfig.createSitePolicy(ISitePolicy.USER_INCLUDE, new String[] { pluginPortion });
+				site = tempConfig.createSiteEntry(siteURL,policy);
+				tempConfig.configureSite(site);
+			} else {
+				// existing site
+				policy = site.getSitePolicy();
+				if (policy.getType() == ISitePolicy.USER_EXCLUDE)
+					continue; // redundant entry ... skip it
+				if (pluginPortion == null) {
+					// directory entry ... change policy to exclusion (with empty list)
+					policy = tempConfig.createSitePolicy(ISitePolicy.USER_EXCLUDE, null);
+				} else {
+					// explicit entry ... add it to the inclusion list
+					ArrayList list = new ArrayList(Arrays.asList(policy.getList()));
+					list.add(pluginPortion);
+					policy = tempConfig.createSitePolicy(ISitePolicy.USER_INCLUDE,(String[])list.toArray(new String[0]));
+				}	
+				site.setSitePolicy(policy);
+			}				
+		}
+		
+		// save the configuration in temp location
+		String tmpDirName = System.getProperty("java.io.tmpdir");
+		if (!tmpDirName.endsWith(File.separator))
+		tmpDirName += File.separator;
+		tmpDirName += Long.toString((new Date()).getTime()) + File.separator;
+		File tmpDir = new File(tmpDirName);
+		tmpDir.mkdirs();
+		tmpDir.deleteOnExit();
+		File tmpCfg = File.createTempFile("platform",".cfg",tmpDir);
+		
+		// force writing null stamps
+		ISiteEntry[] se = tempConfig.getConfiguredSites();
+		for (int i=0; i<se.length; i++) {
+			((SiteEntry)se[i]).changeStampIsValid = true;
+			((SiteEntry)se[i]).pluginsChangeStampIsValid = true;
+			((SiteEntry)se[i]).featuresChangeStampIsValid = true;
+		}
+		tempConfig.changeStampIsValid = true;
+		tempConfig.pluginsChangeStampIsValid = true;
+		tempConfig.featuresChangeStampIsValid = true;
+		
+		// write out configuration
+		URL tmpURL = new URL("file:" + tmpCfg.getAbsolutePath().replace(File.separatorChar, '/'));
+		tempConfig.save(tmpURL); // write the temporary configuration we just created
+		tmpCfg.deleteOnExit();
+		
+		// return reference to temp configuration
+		return tmpURL.toExternalForm();
+	}
+	
+	private static int findEntrySeparator(String pathEntry, int cnt) {
+		for (int i=pathEntry.length()-1; i>=0; i--) {
+			if (pathEntry.charAt(i) == '/') {
+				if (--cnt == 0)
+					return i;
+			}
+		}
+		return -1;
 	}
 	
 	private static String[] stringListToArray(String prop, String separator) {	

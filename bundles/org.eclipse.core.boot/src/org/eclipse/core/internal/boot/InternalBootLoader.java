@@ -35,10 +35,7 @@ public final class InternalBootLoader {
 	private static String[] commandLine;
 	private static ClassLoader loader = null;
 	private static String baseLocation = null;
-	private static URL plugins = null;
-	private static String application = null;
-	private static String feature = null;
-	private static String configuration = null;
+	private static String applicationR10 = null; // R1.0 compatibility
 	private static URL installURL = null;
 	private static boolean debugRequested = false;
 	private static boolean usage = false;
@@ -102,9 +99,6 @@ public final class InternalBootLoader {
 	private static final String DEBUG = "-debug";
 	private static final String PLATFORM = "-platform";
 	private static final String DATA = "-data";
-	private static final String PLUGINS = "-plugins";
-	private static final String APPLICATION = "-application";
-	private static final String CONFIGURATION = "-configuration";
 	private static final String DEV = "-dev";
 	private static final String WS = "-ws";
 	private static final String OS = "-os";
@@ -169,23 +163,6 @@ private static PlatformClassLoader configurePlatformLoader() {
  */
 public static boolean containsSavedPlatform(String location) {
 	return new File(location + "/" + META_AREA).exists();
-}
-private static URL[] defaultPluginPath() {
-	// If nothing was specified by the user or the user's value could not be used
-	// use the data from the PlatformConfiguration.
-	if (true) {
-		PlatformConfiguration current = getCurrentPlatformConfiguration();
-		URL[] result = current.getPluginPath();
-		return result;
-	}
-	
-	URL[] result = new URL[1];
-	try {
-		// at this point use "real" (internal) URL to allow registry manager to discover plugins.
-		result[0] = new URL(getInstallURL(),PLUGINSDIR);
-	} catch (MalformedURLException e) {
-	}
-	return result;
 }
 /**
  * convert a list of comma-separated tokens into an array
@@ -382,11 +359,16 @@ private static Object[] getPlatformClassLoaderPath() {
 /**
  * @see BootLoader
  */
-public static URL[] getPluginPath(URL pluginPathLocation) {
+/*
+ * This method is retained for R1.0 compatibility because it is defined as API.
+ * It's function matches the API description (returns <code>null</code> when
+ * argument URL is <code>null</code> or cannot be read).
+ */
+public static URL[] getPluginPath(URL pluginPathLocation/*R1.0 compatibility*/) {
 	InputStream input = null;
 	// first try and see if the given plugin path location exists.
 	if (pluginPathLocation == null)
-		return defaultPluginPath();
+		return null;
 	try {
 		input = pluginPathLocation.openStream();
 	} catch (IOException e) {
@@ -402,10 +384,9 @@ public static URL[] getPluginPath(URL pluginPathLocation) {
 		} catch (IOException e) {
 		}
 
-	// if nothing was found at the supplied location or in the install 
-	// location, compute the default plugin path.
+	// nothing was found at the supplied location or in the install location
 	if (input == null)
-		return defaultPluginPath();
+		return null;
 	// if we found a plugin path definition somewhere so read it and close the location.
 	URL[] result = null;
 	try {
@@ -510,11 +491,9 @@ public static boolean inDebugMode() {
 public static boolean inDevelopmentMode() {
 	return inDevelopmentMode || inVAJ || inVAME;
 }
-private static String[] initialize(URL pluginPathLocation, String location, String[] args) throws Exception {
+private static String[] initialize(URL pluginPathLocation/*R1.0 compatibility*/, String location, String[] args) throws Exception {
 	if (running)
 		throw new RuntimeException("The platform is already running");
-	// preset the locations so the command line processor does not overwrite.
-	plugins = pluginPathLocation;
 	baseLocation = location;
 	String[] appArgs = processCommandLine(args);
 	// Do setupSystemContext() ASAP after processCommandLine
@@ -545,14 +524,12 @@ private static String[] initialize(URL pluginPathLocation, String location, Stri
 	// load any debug options
 	loadOptions();
 
-	// load platform configuration
-	PlatformConfiguration.startup(configuration);
+	// load platform configuration and consume configuration-related arguments
+	appArgs = PlatformConfiguration.startup(appArgs, pluginPathLocation/*R1.0 compatibility*/, applicationR10/*R1.0 compatibility*/);
 
 	// initialize eclipse URL handling
 	PlatformURLHandlerFactory.startup(baseLocation + File.separator + META_AREA);
 	PlatformURLBaseConnection.startup(getInstallURL()); // past this point we can use eclipse:/platform/ URLs
-	PlatformURLConfigurationConnection.startup(getInstallURL()); // past this point we can use eclipse:/configuration/ URLs
-	PlatformURLComponentConnection.startup(getInstallURL()); // past this point we can use eclipse:/component/ URLs
 
 	// create and configure platform class loader
 	loader = configurePlatformLoader();
@@ -560,17 +537,12 @@ private static String[] initialize(URL pluginPathLocation, String location, Stri
 	return appArgs;
 }
 /**
- * Returns the complete plugin path defined by the file at the given location.
- * If the given location is <code>null</code> or does not indicate a valid 
- * pluginPath definition file, the returned value is the default
- * pluginPath computed relative to the location of the platform being started.
+ * Returns the complete plugin path.
  * If in development mode, the returned value may have additional VA
  * values added.
  */
-private static URL[] internalGetPluginPath(URL pluginPathLocation) {
-	URL[] result = getPluginPath(pluginPathLocation);
-	if (result == null)
-		result = defaultPluginPath();
+private static URL[] internalGetPluginPath() {
+	URL[] result = getCurrentPlatformConfiguration().getPluginPath();
 	// augment with additional VA entries if in development mode.
 	if (inDevelopmentMode())
 		result = getPluginPathVa(result);
@@ -713,38 +685,6 @@ private static String[] processCommandLine(String[] args) throws Exception {
 				baseLocation = arg;
 		}
 
-		// look for the plugins location.  Only set it if not already set. This 
-		// preserves the value set in the startup() parameter.  Be sure however
-		// to consume the command-line argument.
-		if (args[i - 1].equalsIgnoreCase(PLUGINS)) {
-			found = true;
-			// if the arg can be made into a URL use it.  Otherwise assume that
-			// it is a file path so make a file URL.
-			try {
-				if (plugins == null)
-					plugins = new URL(arg);
-			} catch (MalformedURLException e) {
-				try {
-					plugins = new URL("file:" + arg);
-				} catch (MalformedURLException e2) {
-				}
-			}
-		}
-
-		// look for the application to run.  Only heed the value if the application is
-		// not already set.
-		if (args[i - 1].equalsIgnoreCase(APPLICATION)) {
-			found = true;
-			if (application == null)
-				application = arg;
-		}
-
-		// look for the platform configuration to use.
-		if (args[i - 1].equalsIgnoreCase(CONFIGURATION)) {
-			found = true;
-			configuration = arg;
-		}
-
 		// look for the window system.  
 		if (args[i - 1].equalsIgnoreCase(WS)) {
 			found = true;
@@ -823,20 +763,17 @@ public static URL resolve(URL url) throws IOException {
 /**
  * @see BootLoader
  */
-public static Object run(String applicationName, URL pluginPathLocation, String location, String[] args) throws Exception {
+public static Object run(String applicationName/*R1.0 compatibility*/, URL pluginPathLocation/*R1.0 compatibility*/, String location, String[] args) throws Exception {
 	Object result = null;
-	if (applicationName != null)
-		application = applicationName;
+	applicationR10 = applicationName; // for R1.0 compatibility
 	String[] applicationArgs = null;
 	try {
 		applicationArgs = startup(pluginPathLocation, location, args);
 	} catch (Exception e) {
 		throw e;
 	}
-	// if the application is still null, then the user has not specified so use the
-	// one from the platform configuration. This is the normal case.
-	if (application == null)
-		application = getCurrentPlatformConfiguration().getApplicationIdentifier(feature);
+	
+	String application = getCurrentPlatformConfiguration().getApplicationIdentifier();
 	IPlatformRunnable runnable = getRunnable(application);
 	if (runnable == null)
 		throw new IllegalArgumentException("Application not found: " + application);
@@ -932,7 +869,7 @@ public static void shutdown() throws Exception {
 /**
  * @see BootLoader
  */
-public static String[] startup(URL pluginPathLocation, String location, String[] args) throws Exception {
+public static String[] startup(URL pluginPathLocation/*R1.0 compatibility*/, String location, String[] args) throws Exception {
 	assertNotRunning();
 	starting = true;
 	commandLine = args;
@@ -940,7 +877,7 @@ public static String[] startup(URL pluginPathLocation, String location, String[]
 	Class platform = loader.loadClass(PLATFORM_ENTRYPOINT);
 	Method method = platform.getDeclaredMethod("loaderStartup", new Class[] { URL[].class, String.class, Properties.class, String[].class });
 	try {
-		URL[] pluginPath = internalGetPluginPath(plugins);
+		URL[] pluginPath = internalGetPluginPath();
 		method.invoke(platform, new Object[] { pluginPath, baseLocation, options, args });
 	} catch (InvocationTargetException e) {
 		if (e.getTargetException() instanceof Error)
