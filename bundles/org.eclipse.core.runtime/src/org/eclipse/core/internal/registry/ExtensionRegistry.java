@@ -43,15 +43,13 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		};
 		private Map deltas;
 		private Object[] listenerInfos;
-		private IObjectManager finalTarget;
 		
-		public ExtensionEventDispatcherJob(Object[] listenerInfos, Map deltas, IObjectManager finalTarget) {
+		public ExtensionEventDispatcherJob(Object[] listenerInfos, Map deltas) {
 			// name not NL'd since it is a system job
 			super("Registry event dispatcher"); //$NON-NLS-1$
 			setSystem(true);
 			this.listenerInfos = listenerInfos;
 			this.deltas = deltas;
-			this.finalTarget = finalTarget;
 			// all extension event dispatching jobs use this rule
 			setRule(EXTENSION_EVENT_RULE);
 		}
@@ -262,7 +260,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		// the deltas have been saved for notification - we can clear them now
 		deltas.clear();
 		// do the notification asynchronously
-		new ExtensionEventDispatcherJob(tmpListeners, tmpDeltas, registryObjects).schedule();
+		new ExtensionEventDispatcherJob(tmpListeners, tmpDeltas).schedule();
 	}
 
 	/*
