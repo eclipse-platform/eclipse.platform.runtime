@@ -101,7 +101,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 					removedExtensions.add(extensionDeltas[i].getExtension());
 				}
 
-				removedExtensionPoints.addAll(currentDelta.removedExtensionPoints());
+				removedExtensionPoints.addAll(currentDelta.getRemovedExtensionPoints());
 			}
 
 			Handle[] toBeRemoved = new Handle[0];
@@ -636,11 +636,11 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	private void removeExtensionPoint(int extPoint) {
 		ExtensionPoint extensionPoint = (ExtensionPoint) registryObjects.getObject(extPoint, RegistryObjectManager.EXTENSION_POINT);
 		int[] existingExtensions = extensionPoint.getRawChildren();
+		recordExtensionPointRemoval(extensionPoint);
 		if (existingExtensions == null || existingExtensions.length == 0) {
 			return;
 		}
 		//Remove the extension point from the registry object
-		recordExtensionPointRemoval(extensionPoint);
 		orphanExtensions.put(extensionPoint.getUniqueIdentifier(), existingExtensions);
 		link(extensionPoint, null);
 		recordChange(extensionPoint, existingExtensions, IExtensionDelta.REMOVED);
