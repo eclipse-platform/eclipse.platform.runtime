@@ -44,6 +44,9 @@ public class RegistryObjectManager {
 	//They are used to keep track on a bundle basis of the extension being added or removed
 	private KeyedHashSet newContributions; //represents the bundles added during this session.
 	private Object formerContributions; //represents the bundles encountered in previous sessions. This is loaded lazily.
+
+	// Map key: extensionPointFullyQualifiedName, value int[] of orphan extensions. 
+	// The orphan access does not need to be synchronized because the it is protected by the lock in extension registry.
 	private Object orphanExtensions;
 
 	private KeyedHashSet heldObjects = new KeyedHashSet(); //strong reference to the objects that must be hold on to
@@ -54,9 +57,8 @@ public class RegistryObjectManager {
 	private boolean fromCache = false;
 
 	public RegistryObjectManager() {
-		Handle.objectManager = this;
 		extensionPoints = new HashtableOfStringAndInt();
-		if ("true".equals(System.getProperty(InternalPlatform.PROP_NO_REGISTRY_FLUSHING))) { //$NON-NLS-1$
+		if ("true".equalsIgnoreCase(System.getProperty(InternalPlatform.PROP_NO_REGISTRY_FLUSHING))) { //$NON-NLS-1$
 			cache = new ReferenceMap(ReferenceMap.HARD, ReferenceMap.HARD);
 		} else {
 			cache = new ReferenceMap(ReferenceMap.HARD, ReferenceMap.SOFT);
@@ -78,7 +80,7 @@ public class RegistryObjectManager {
 		nextId = ((Integer) results[2]).intValue();
 		fromCache = true;
 
-		if ("true".equals(System.getProperty(InternalPlatform.PROP_NO_LAZY_CACHE_LOADING))) { //$NON-NLS-1$
+		if ("true".equalsIgnoreCase(System.getProperty(InternalPlatform.PROP_NO_LAZY_CACHE_LOADING))) { //$NON-NLS-1$
 			reader.setHoldObjects(true);
 			markOrphansHasDirty(getOrphans());
 			fromCache = reader.readAllCache(this);
@@ -87,27 +89,23 @@ public class RegistryObjectManager {
 		return fromCache;
 	}
 
-	synchronized void addNamespace(Contribution namespace) {
+	synchronized void addContribution(Contribution contribution) {
 		isDirty = true;
-		newContributions.add(namespace);
+		newContributions.add(contribution);
 	}
 
 	synchronized int[] getExtensionPointsFrom(long id) {
-		KeyedElement tmp;
-		tmp = newContributions.getByKey(new Long(id));
+		KeyedElement tmp = newContributions.getByKey(new Long(id));
 		if (tmp == null)
 			tmp = getFormerContributions().getByKey(new Long(id));
 		if (tmp == null)
 			return EMPTY_INT_ARRAY;
-		Contribution namespace = (Contribution) tmp;
-		return namespace.getExtensionPoints();
+		return ((Contribution) tmp).getExtensionPoints();
 	}
 
 	synchronized Set getNamespaces() {
-		KeyedElement[] formerElts;
-		KeyedElement[] newElts;
-		formerElts = getFormerContributions().elements();
-		newElts = newContributions.elements();
+		KeyedElement[] formerElts = getFormerContributions().elements();
+		KeyedElement[] newElts = newContributions.elements();
 		Set tmp = new HashSet(formerElts.length + newElts.length);
 		for (int i = 0; i < formerElts.length; i++) {
 			tmp.add(((Contribution) formerElts[i]).getNamespace());
@@ -138,7 +136,7 @@ public class RegistryObjectManager {
 		return result;
 	}
 
-	synchronized public void add(NestedRegistryModelObject registryObject, boolean hold) {
+	synchronized public void add(RegistryObject registryObject, boolean hold) {
 		if (registryObject.getObjectId() == UNKNOWN) {
 			int id = nextId++;
 			registryObject.setObjectId(id);
@@ -148,25 +146,25 @@ public class RegistryObjectManager {
 			hold(registryObject);
 	}
 
-	private void remove(NestedRegistryModelObject registryObject, boolean release) {
+	private void remove(RegistryObject registryObject, boolean release) {
 		cache.remove(new Integer(registryObject.getObjectId()));
 		if (release)
 			release(registryObject);
 	}
 
 	synchronized void remove(int id, boolean release) {
-		NestedRegistryModelObject toRemove = (NestedRegistryModelObject) cache.get(new Integer(id));
+		RegistryObject toRemove = (RegistryObject) cache.get(new Integer(id));
 		if (fileOffsets != null)
 			fileOffsets.removeKey(id);
 		if (toRemove != null)
 			remove(toRemove, release);
 	}
 
-	private void hold(NestedRegistryModelObject toHold) {
+	private void hold(RegistryObject toHold) {
 		heldObjects.add(toHold);
 	}
 
-	private void release(NestedRegistryModelObject toRelease) {
+	private void release(RegistryObject toRelease) {
 		heldObjects.remove(toRelease);
 	}
 
@@ -185,7 +183,7 @@ public class RegistryObjectManager {
 		return result;
 	}
 
-	synchronized NestedRegistryModelObject[] getObjects(int[] values, byte type) {
+	synchronized RegistryObject[] getObjects(int[] values, byte type) {
 		if (values.length == 0) {
 			switch (type) {
 				case EXTENSION_POINT :
@@ -198,7 +196,7 @@ public class RegistryObjectManager {
 			}
 		}
 
-		NestedRegistryModelObject[] results = null;
+		RegistryObject[] results = null;
 		switch (type) {
 			case EXTENSION_POINT :
 				results = new ExtensionPoint[values.length];
@@ -212,7 +210,7 @@ public class RegistryObjectManager {
 				break;
 		}
 		for (int i = 0; i < values.length; i++) {
-			results[i] = (NestedRegistryModelObject) basicGetObject(values[i], type);
+			results[i] = (RegistryObject) basicGetObject(values[i], type);
 		}
 		return results;
 	}
@@ -236,9 +234,9 @@ public class RegistryObjectManager {
 				return new ConfigurationElementHandle(id);
 
 			case THIRDLEVEL_CONFIGURATION_ELEMENT :
+			default : //avoid compiler error, type should always be known
 				return new ThirdLevelConfigurationElementHandle(id);
 		}
-		return null;
 	}
 
 	Handle[] getHandles(int[] ids, byte type) {
@@ -296,32 +294,21 @@ public class RegistryObjectManager {
 	}
 
 	private Object load(int id, byte type) {
-		Object result = null;
 		TableReader reader = new TableReader();
 		switch (type) {
 			case CONFIGURATION_ELEMENT :
-				//				System.out.println("reading configuration element " + id); //$NON-NLS-1$
-				result = reader.loadConfigurationElement(fileOffsets.get(id));
-				break;
+				return reader.loadConfigurationElement(fileOffsets.get(id));
 
 			case THIRDLEVEL_CONFIGURATION_ELEMENT :
-				//				System.out.println("third level " + id); //$NON-NLS-1$
-				result = reader.loadThirdLevelConfigurationElements(fileOffsets.get(id), this);
-				break;
+				return reader.loadThirdLevelConfigurationElements(fileOffsets.get(id), this);
 
 			case EXTENSION :
-				//System.out.println("reading extension element " + id); //$NON-NLS-1$
-				result = reader.loadExtension(fileOffsets.get(id));
-				break;
+				return reader.loadExtension(fileOffsets.get(id));
 
 			case EXTENSION_POINT :
-				result = reader.loadExtensionPointTree(fileOffsets.get(id), this);
-				break;
-
-			default :
-				break;
+			default :	//avoid compile errors. type must always be known
+				return reader.loadExtensionPointTree(fileOffsets.get(id), this);
 		}
-		return result;
 	}
 
 	synchronized public int[] getExtensionsFrom(long bundleId) {
@@ -349,7 +336,7 @@ public class RegistryObjectManager {
 		return isDirty;
 	}
 
-	synchronized void removeNamespace(long bundleId) {
+	synchronized void removeContribution(long bundleId) {
 		boolean removed = newContributions.removeByKey(new Long(bundleId));
 		if (removed == false) {
 			removed = getFormerContributions().removeByKey(new Long(bundleId));
@@ -364,7 +351,7 @@ public class RegistryObjectManager {
 
 	}
 
-	synchronized private Map getOrphans() {
+	private Map getOrphans() {
 		Object result = orphanExtensions;
 		if (orphanExtensions == null && !fromCache) {
 			result = new HashMap();
@@ -392,7 +379,6 @@ public class RegistryObjectManager {
 			orphans.put(extensionPoint, extensions);
 		}
 		markOrphansHasDirty(orphans);
-		return;
 	}
 
 	void markOrphansHasDirty(Map orphans) {
@@ -414,7 +400,6 @@ public class RegistryObjectManager {
 			orphans.put(extensionPoint, new int[] {extension});
 		}
 		markOrphansHasDirty(orphans);
-		return;
 	}
 
 	int[] removeOrphans(String extensionPoint) {
@@ -465,7 +450,7 @@ public class RegistryObjectManager {
 	}
 
 	//	This method is only used by the writer to reach in
-	public KeyedHashSet[] getContributions() {
+	KeyedHashSet[] getContributions() {
 		return new KeyedHashSet[] {newContributions, getFormerContributions()};
 	}
 }

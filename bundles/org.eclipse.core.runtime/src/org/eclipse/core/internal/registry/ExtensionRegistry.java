@@ -162,13 +162,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	// all registry change listeners
 	private transient ListenerList listeners = new ListenerList();
 
-	//the objects consistuting the registry
-	private RegistryObjectManager registryObjects;
-
-	RegistryObjectManager getObjectManager() {
-		Handle.objectManager = registryObjects;
-		return registryObjects;
-	}
+	private RegistryObjectManager registryObjects = null;
 
 	/**
 	 * Adds and resolves all extensions and extension points provided by the
@@ -265,7 +259,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		if (element.getNamespace() == null)
 			return;
 
-		registryObjects.addNamespace(element);
+		registryObjects.addContribution(element);
 		if (!link)
 			return;
 
@@ -275,7 +269,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	private boolean basicRemove(long bundleId) {
 		// ignore anonymous namespaces
 		removeExtensionsAndExtensionPoints(bundleId);
-		registryObjects.removeNamespace(bundleId);
+		registryObjects.removeContribution(bundleId);
 		return true;
 	}
 
@@ -603,7 +597,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		}
 		// otherwise, unlink the extension from the extension point
 		int[] existingExtensions = extPoint.getRawChildren();
-		int[] newExtensions = null;
+		int[] newExtensions = RegistryObjectManager.EMPTY_INT_ARRAY;
 		if (existingExtensions.length > 1) {
 			if (existingExtensions.length == 1)
 				newExtensions = RegistryObjectManager.EMPTY_INT_ARRAY;
@@ -626,7 +620,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		}
 		//Remove the extension point from the registry object
 		registryObjects.addOrphans(extensionPoint.getUniqueIdentifier(), existingExtensions);
-		link(extensionPoint, null);
+		link(extensionPoint, RegistryObjectManager.EMPTY_INT_ARRAY);
 		recordChange(extensionPoint, existingExtensions, IExtensionDelta.REMOVED);
 	}
 
@@ -651,7 +645,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 
 	public ExtensionRegistry() {
 		boolean fromCache = false;
-		registryObjects = new RegistryObjectManager();
+		registryObjects = Handle.getObjectManager();
 		if (!"true".equals(System.getProperty(InternalPlatform.PROP_NO_REGISTRY_CACHE))) { //$NON-NLS-1$
 			// Try to read the registry from the cache first. If that fails, create a new registry
 			MultiStatus problems = new MultiStatus(Platform.PI_RUNTIME, ExtensionsParser.PARSE_PROBLEM, "Registry cache problems", null); //$NON-NLS-1$

@@ -12,6 +12,9 @@ package org.eclipse.core.internal.registry;
 
 import org.eclipse.core.runtime.*;
 
+/**
+ * @since 3.1 
+ */
 public class ExtensionHandle extends Handle implements IExtension {
 	static final ExtensionHandle[] EMPTY_ARRAY = new ExtensionHandle[0];
 
@@ -53,8 +56,8 @@ public class ExtensionHandle extends Handle implements IExtension {
 	public IConfigurationElement[] getConfigurationElements() {
 		return (IConfigurationElement[]) objectManager.getHandles(getExtension().getRawChildren(), RegistryObjectManager.CONFIGURATION_ELEMENT);
 	}
-	
-	NestedRegistryModelObject getObject() {
+	 
+	RegistryObject getObject() {
 		return getExtension();
 	}
 }

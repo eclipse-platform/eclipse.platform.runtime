@@ -12,6 +12,9 @@ package org.eclipse.core.internal.registry;
 
 import org.eclipse.core.runtime.*;
 
+/**
+ * @since 3.1 
+ */
 public class ConfigurationElementHandle extends Handle implements IConfigurationElement {
 	static final ConfigurationElementHandle[] EMPTY_ARRAY = new ConfigurationElementHandle[0];
 
@@ -94,7 +97,7 @@ public class ConfigurationElementHandle extends Handle implements IConfiguration
 		return getConfigurationElement().getValueAsIs();
 	}
 
-	NestedRegistryModelObject getObject() {
+	RegistryObject getObject() {
 		return getConfigurationElement();
 	}
 

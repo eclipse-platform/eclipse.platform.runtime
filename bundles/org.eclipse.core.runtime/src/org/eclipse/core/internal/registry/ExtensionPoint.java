@@ -17,7 +17,7 @@ import java.lang.ref.SoftReference;
  * An object which represents the user-defined extension point in a 
  * plug-in manifest. 
  */
-public class ExtensionPoint extends NestedRegistryModelObject {
+public class ExtensionPoint extends RegistryObject {
 	public static final ExtensionPoint[] EMPTY_ARRAY = new ExtensionPoint[0];
 
 	//Place holder for the label and the schema. It contains either a String[] or a SoftReference to a String[].
@@ -48,7 +48,7 @@ public class ExtensionPoint extends NestedRegistryModelObject {
 
 	private String[] getExtraData() {
 		//The extension point has been created by parsing, or does not have any extra data 
-		if (extraDataOffset == -1) {
+		if (extraDataOffset == -1) {	//When this is true, the extraInformation is always a String[]. This happens when the object is created by the parser.  
 			if (extraInformation != null)
 				return (String[]) extraInformation;
 			return new String[EXTRA_SIZE];
@@ -63,6 +63,17 @@ public class ExtensionPoint extends NestedRegistryModelObject {
 		return result;
 	}
 
+	/**
+	 * At the end of this method, extra information will be a string[]
+	 */
+	private void ensureExtraInformationType() {
+		if (extraInformation instanceof SoftReference) {
+			extraInformation = ((SoftReference) extraInformation).get();
+		}
+		if (extraInformation == null) {
+			extraInformation = new String[EXTRA_SIZE];
+		}
+	}
 	
 	String getSchemaReference() {
 		String[] result = getExtraData();
@@ -87,37 +98,27 @@ public class ExtensionPoint extends NestedRegistryModelObject {
 	}
 	
 	void setSchema(String value) {
-		if (extraInformation == null) {
-			extraInformation = new String[EXTRA_SIZE];
-		}
+		ensureExtraInformationType();
 		((String[]) extraInformation)[SCHEMA] = value;
 	}
 
 	void setLabel(String value) {
-		if (extraInformation == null) {
-			extraInformation = new String[EXTRA_SIZE];
-		}
+		ensureExtraInformationType();
 		((String[]) extraInformation)[LABEL] = value;
 	}
 
 	void setUniqueIdentifier(String value) {
-		if (extraInformation == null) {
-			extraInformation = new String[EXTRA_SIZE];
-		}
+		ensureExtraInformationType();
 		((String[]) extraInformation)[QUALIFIED_NAME] = value;
 	}
 	
 	void setNamespace(String value) {
-		if (extraInformation == null) {
-			extraInformation = new String[EXTRA_SIZE];
-		}
+		ensureExtraInformationType();
 		((String[]) extraInformation)[NAMESPACE] = value;
 	}
 	
 	void setBundleId(long id) {
-		if (extraInformation == null) {
-			extraInformation = new String[EXTRA_SIZE];
-		}
+		ensureExtraInformationType();
 		((String[]) extraInformation)[BUNDLEID] = Long.toString(id);
 	}
 	

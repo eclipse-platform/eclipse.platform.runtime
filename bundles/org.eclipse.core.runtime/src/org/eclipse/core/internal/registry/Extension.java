@@ -18,7 +18,7 @@ import org.osgi.framework.Bundle;
 /**
  * An object which represents the user-defined extension in a plug-in manifest.  
  */
-public class Extension extends NestedRegistryModelObject {
+public class Extension extends RegistryObject {
 	public static final Extension[] EMPTY_ARRAY = new Extension[0];
 	
 	//Extension simple identifier
@@ -58,9 +58,7 @@ public class Extension extends NestedRegistryModelObject {
 	}
 
 	void setExtensionPointIdentifier(String value) {
-		if (extraInformation == null) {
-			extraInformation = new String[EXTRA_SIZE];
-		}
+		ensureExtraInformationType();
 		((String[]) extraInformation)[XPT_NAME] = value;
 	}
 
@@ -93,9 +91,7 @@ public class Extension extends NestedRegistryModelObject {
 	}
 
 	void setLabel(String value) {
-		if (extraInformation == null) {
-			extraInformation = new String[EXTRA_SIZE];
-		}
+		ensureExtraInformationType();
 		((String[]) extraInformation)[LABEL] = value;
 	}
 	
@@ -129,4 +125,15 @@ public class Extension extends NestedRegistryModelObject {
 		return result;
 	}
 
+	/**
+	 * At the end of this method, extra information will be a string[]
+	 */
+	private void ensureExtraInformationType() {
+		if (extraInformation instanceof SoftReference) {
+			extraInformation = ((SoftReference) extraInformation).get();
+		}
+		if (extraInformation == null) {
+			extraInformation = new String[EXTRA_SIZE];
+		}
+	}
 }

@@ -20,7 +20,7 @@ import org.osgi.framework.Bundle;
  * An object which represents the user-defined contents of an extension
  * in a plug-in manifest.
  */
-public class ConfigurationElement extends NestedRegistryModelObject {
+public class ConfigurationElement extends RegistryObject {
 	static final ConfigurationElement[] EMPTY_ARRAY = new ConfigurationElement[0];
 	private static final int PLUGIN_ERROR = 1;
 
@@ -47,13 +47,13 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 		//Nothing to do
 	}
 
-	ConfigurationElement(int self, Bundle bundle, String name, String[] propertiesAndValue2, int[] children, int misc, int parent, byte parentType) {
+	ConfigurationElement(int self, Bundle bundle, String name, String[] propertiesAndValue, int[] children, int extraDataOffset, int parent, byte parentType) {
 		setObjectId(self);
 		contributingBundle = bundle;
 		this.name = name;
-		this.propertiesAndValue = propertiesAndValue2;
+		this.propertiesAndValue = propertiesAndValue;
 		setRawChildren(children);
-		extraDataOffset = misc;
+		this.extraDataOffset = extraDataOffset;
 		parentId = parent;
 		this.parentType = parentType;
 	}
@@ -132,24 +132,29 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 			String message = Policy.bind("plugin.extDefNoClass", attributeName); //$NON-NLS-1$
 			IStatus status = new Status(IStatus.ERROR, Platform.PI_RUNTIME, PLUGIN_ERROR, message, null); //$NON-NLS-1$ 
 			InternalPlatform.getDefault().getLog(InternalPlatform.getDefault().getBundleContext().getBundle()).log(status); //$NON-NLS-1$
-
 			throw new CoreException(status);
 		}
 
-		return createExecutableExtension(contributingBundle, pluginName, className, initData, this, attributeName);
+		return createExecutableExtension(pluginName, className, initData, this, attributeName);
 	}
 
-	private Object createExecutableExtension(Bundle bundle, String pluginName, String className, Object initData, ConfigurationElement cfig, String propertyName) throws CoreException {
-		String id = bundle.getSymbolicName(); // this plugin id check if we need to delegate to some other plugin
+	private Object createExecutableExtension(String pluginName, String className, Object initData, ConfigurationElement cfig, String propertyName) throws CoreException {
+		if(contributingBundle==null) {
+			throwException("Impossible to create an executable extension from a bundle that does not exists", new InvalidHandleException("Bundle no longer RESOLVED"));
+		}
+		String id = contributingBundle.getSymbolicName(); // this plugin id check if we need to delegate to some other plugin
 		if (pluginName != null && !pluginName.equals("") && !pluginName.equals(id)) { //$NON-NLS-1$
 			Bundle otherBundle = null;
 			otherBundle = InternalPlatform.getDefault().getBundle(pluginName);
 			return createExecutableExtension(otherBundle, className, initData, cfig, propertyName);
 		}
-		return createExecutableExtension(bundle, className, initData, cfig, propertyName);
+		return createExecutableExtension(contributingBundle, className, initData, cfig, propertyName);
 	}
 
 	private Object createExecutableExtension(Bundle bundle, String className, Object initData, ConfigurationElement cfig, String propertyName) throws CoreException {
+		if(contributingBundle==null) {
+			throwException("Impossible to create an executable extension from a bundle that does not exists", new InvalidHandleException("Bundle no longer RESOLVED"));
+		}
 		// load the requested class from this plugin
 		Class classInstance = null;
 		try {
@@ -259,13 +264,13 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 		return contributingBundle;
 	}
 
-	ConfigurationElement[] getChildren(String childrenName) {//TODO This is not really nice. The same kind of code is in ConfigurationElementHandle
+	ConfigurationElement[] getChildren(String childrenName) {
 		if (getRawChildren().length == 0)
 			return ConfigurationElement.EMPTY_ARRAY;
 
 		ConfigurationElement[] result = new ConfigurationElement[1]; //Most of the time there is only one match
 		int idx = 0;
-		RegistryObjectManager objectManager = ((ExtensionRegistry) InternalPlatform.getDefault().getRegistry()).getObjectManager();
+		RegistryObjectManager objectManager = Handle.getObjectManager();
 		for (int i = 0; i < children.length; i++) {
 			ConfigurationElement toTest = (ConfigurationElement) objectManager.getObject(children[i], extraDataOffset == -1 ? RegistryObjectManager.CONFIGURATION_ELEMENT : RegistryObjectManager.THIRDLEVEL_CONFIGURATION_ELEMENT);
 			if (toTest.name.equals(childrenName)) {
@@ -299,6 +304,6 @@ public class ConfigurationElement extends NestedRegistryModelObject {
 	}
 	
 	String getNamespace() {
-		return contributingBundle != null ? contributingBundle.getSymbolicName() : null;
+		return contributingBundle == null ? null : contributingBundle.getSymbolicName();
 	}
 }

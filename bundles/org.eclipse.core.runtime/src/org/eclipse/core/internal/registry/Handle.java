@@ -18,9 +18,15 @@ package org.eclipse.core.internal.registry;
  */
 public abstract class Handle {
 	static RegistryObjectManager objectManager;
-	
+
+	static RegistryObjectManager getObjectManager() {
+		if (objectManager == null)
+			objectManager = new RegistryObjectManager();
+		return objectManager;
+	}
+
 	private int objectId;
-	
+
 	protected int getId() {
 		return objectId;
 	}
@@ -28,10 +34,10 @@ public abstract class Handle {
 	Handle(int value) {
 		objectId = value;
 	}
-	
+
 	/**
 	 * Return the actual object corresponding to this handle.
 	 * @throws InvalidHandleException when the handle is stale.
 	 */
-	abstract NestedRegistryModelObject getObject(); 
+	abstract RegistryObject getObject();
 }

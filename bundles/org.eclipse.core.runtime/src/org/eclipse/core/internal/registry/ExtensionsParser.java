@@ -192,7 +192,7 @@ public class ExtensionsParser extends DefaultHandler {
 					if (extensionPoints.size() > 0) {
 						namespaceChildren[Contribution.EXTENSION_POINT] = extensionPoints.size();
 						for (Iterator iter = extensionPoints.iterator(); iter.hasNext();) {
-							namespaceChildren[position++] = ((NestedRegistryModelObject) iter.next()).getObjectId();
+							namespaceChildren[position++] = ((RegistryObject) iter.next()).getObjectId();
 						}
 						extensionPoints.clear();
 					}
@@ -234,7 +234,7 @@ public class ExtensionsParser extends DefaultHandler {
 					currentConfigElement.setValue(value.trim());
 				}
 
-				NestedRegistryModelObject parent = (NestedRegistryModelObject) objectStack.peek();
+				RegistryObject parent = (RegistryObject) objectStack.peek();
 				// Want to add this configuration element to the subelements of an extension
 				int[] oldValues = parent.getRawChildren();
 				int size = oldValues.length;

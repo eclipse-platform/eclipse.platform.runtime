@@ -14,6 +14,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import org.eclipse.core.runtime.*;
 
+/**
+ * @since 3.1 
+ */
 public class ExtensionPointHandle extends Handle implements IExtensionPoint {
 	static final ExtensionPointHandle[] EMPTY_ARRAY = new ExtensionPointHandle[0];
 
@@ -77,7 +80,7 @@ public class ExtensionPointHandle extends Handle implements IExtensionPoint {
 		return getExtensionPoint().getUniqueIdentifier();
 	}
 
-	NestedRegistryModelObject getObject() {
+	RegistryObject getObject() {
 		return getExtensionPoint();
 	}
 

@@ -420,7 +420,7 @@ public class TableReader {
 		return xpt;
 	}
 
-	private ExtensionPoint loadFullExtensionPoint() throws IOException {
+	private ExtensionPoint loadFullExtensionPoint() throws IOException { //TODO I don't like this. 
 		ExtensionPoint xpt = basicLoadExtensionPoint();
 		String[] tmp = basicLoadExtensionPointExtraData();
 		xpt.setLabel(tmp[0]);

@@ -75,7 +75,7 @@ public class TableWriter {
 		extraOutput = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(extraDataFile)));
 	}
 
-	private void closeFiles() {
+	private void closeFiles() { //TODO Review exception handling
 		try {
 			mainOutput.close();
 			extraOutput.close();
