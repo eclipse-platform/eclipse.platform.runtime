@@ -51,7 +51,7 @@ public class TableReader {
 
 	//Status code
 	private static final byte fileError = 0;
-	private static final boolean DEBUG = false;
+	private static final boolean DEBUG = false; //TODO need to change
 
 	private boolean holdObjects = false;
 
@@ -299,7 +299,7 @@ public class TableReader {
 		}
 	}
 
-	public Object loadExtensionPoint(int offset) {
+	private Object loadExtensionPoint(int offset) {
 		try {
 			goToInputFile(offset);
 			return basicLoadExtensionPoint();
@@ -308,9 +308,6 @@ public class TableReader {
 			if (DEBUG)
 				InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error reading an extension point (" + offset + ") from the registry cache", e)); //$NON-NLS-1$ //$NON-NLS-2$
 			return null;
-		} finally {
-			closeExtraFile();
-			closeInputFile();
 		}
 	}
 
@@ -448,7 +445,6 @@ public class TableReader {
 		} finally {
 			closeExtraFile();
 			closeInputFile();
-			
 		}
 		return true;
 	}
@@ -506,7 +502,7 @@ public class TableReader {
 		} catch (IOException e) {
 			return null;
 		} finally {
-			if (orphanInput != null )
+			if (orphanInput != null)
 				try {
 					orphanInput.close();
 				} catch (IOException e1) {
