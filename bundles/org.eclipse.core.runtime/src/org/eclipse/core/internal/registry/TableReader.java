@@ -86,8 +86,6 @@ public class TableReader {
 			mainInput = new DataInputStream(new BufferedInputStream(new FileInputStream(mainDataFile)));
 		} catch (FileNotFoundException e) {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error readling the registry cache", e));
-		} catch (IOException e) {
-			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error readling the registry cache", e));
 		}
 	}
 
@@ -95,8 +93,6 @@ public class TableReader {
 		try {
 			extraInput = new DataInputStream(new BufferedInputStream(new FileInputStream(extraDataFile)));
 		} catch (FileNotFoundException e) {
-			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error readling the registry cache", e));
-		} catch (IOException e) {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error readling the registry cache", e));
 		}
 	}
@@ -199,15 +195,15 @@ public class TableReader {
 	public Object loadThirdLevelConfigurationElements(int offset, RegistryObjectManager objectManager) {
 		try {
 			goToExtraFile(offset);
-			return loadConfigurationElementAndChildren(null, extraInput, 3, objectManager, null);
+			return loadConfigurationElementAndChildren(null, extraInput, 3, Integer.MAX_VALUE, objectManager, null);
 		} catch (IOException e) {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error reading a third level configuration element (" + offset + ") from the registry cache", e));
 			return null;
 		}
 	}
 
-	//Read a whole configuration element subtree from the given input stream.
-	private ConfigurationElement loadConfigurationElementAndChildren(DataInputStream is, DataInputStream extraIs, int depth, RegistryObjectManager objectManager, Bundle actualContributingBundle) throws IOException {
+	//Read a whole configuration element subtree
+	private ConfigurationElement loadConfigurationElementAndChildren(DataInputStream is, DataInputStream extraIs, int depth, int maxDepth, RegistryObjectManager objectManager, Bundle actualContributingBundle) throws IOException {
 		DataInputStream currentStream = is;
 		if (depth > 2)
 			currentStream = extraIs;
@@ -216,8 +212,11 @@ public class TableReader {
 		if (actualContributingBundle == null)
 			actualContributingBundle = ce.getContributingBundle();
 		int[] children = ce.getRawChildren();
+		if (depth + 1 > maxDepth)
+			return ce;
+		
 		for (int i = 0; i < children.length; i++) {
-			ConfigurationElement tmp = loadConfigurationElementAndChildren(currentStream, extraIs, depth + 1, objectManager, actualContributingBundle);
+			ConfigurationElement tmp = loadConfigurationElementAndChildren(currentStream, extraIs, depth + 1, maxDepth, objectManager, actualContributingBundle);
 			objectManager.add(tmp, holdObjects);
 		}
 		return ce;
@@ -257,7 +256,7 @@ public class TableReader {
 		return new Extension(self, simpleId, namespace, children, extraData);
 	}
 
-	public ExtensionPoint loadExtensionPointTree(int offset, RegistryObjectManager objects) {
+	public ExtensionPoint loadExtensionPointTree(int offset, RegistryObjectManager objects) {	//TODO See if this can be merged with the readAllEXtensionPointTree
 		try {
 			ExtensionPoint xpt = (ExtensionPoint) loadExtensionPoint(offset);
 			int[] children = xpt.getRawChildren();
@@ -270,18 +269,7 @@ public class TableReader {
 			for (int i = 0; i < nbrOfExtension; i++) {
 				int nbrOfCe = mainInput.readInt();
 				for (int j = 0; j < nbrOfCe; j++) {
-					Bundle contributingBundle = null; //The contributing bundle for the extension for which we are reading the configuration elements
-					ConfigurationElement ce = basicLoadConfigurationElement(mainInput, contributingBundle);
-					objects.add(ce, holdObjects);
-					if (contributingBundle == null)
-						contributingBundle = ce.getContributingBundle();
-
-					int nbrSecondLevelCEs = ce.getRawChildren().length;
-					for (int k = 0; k < nbrSecondLevelCEs; k++) {
-						ConfigurationElement secondLevel = basicLoadConfigurationElement(mainInput, contributingBundle);
-						objects.add(secondLevel, holdObjects);
-					}
-
+					objects.add(loadConfigurationElementAndChildren(mainInput, extraInput, 1, 2, objects, null), holdObjects);
 				}
 			}
 			return xpt;
@@ -403,7 +391,7 @@ public class TableReader {
 				Extension ext = loadFullExtension(objectManager);
 				int[] children = ext.getRawChildren();
 				for (int j = 0; j < children.length; j++) {
-					objectManager.add(loadConfigurationElementAndChildren(mainInput, extraInput, 1, objectManager, null), true);
+					objectManager.add(loadConfigurationElementAndChildren(mainInput, extraInput, 1, Integer.MAX_VALUE, objectManager, null), true);
 				}
 			}
 		} catch (IOException e) {
@@ -424,7 +412,7 @@ public class TableReader {
 		for (int i = 0; i < nbrOfExtension; i++) {
 			int nbrOfCe = mainInput.readInt();
 			for (int j = 0; j < nbrOfCe; j++) {
-				objectManager.add(loadConfigurationElementAndChildren(mainInput, extraInput, 1, objectManager, null), true);
+				objectManager.add(loadConfigurationElementAndChildren(mainInput, extraInput, 1, Integer.MAX_VALUE, objectManager, null), true);
 			}
 		}
 		return xpt;

@@ -92,9 +92,9 @@ public class TableWriter {
 			saveExtensionPoint(points[i]);
 		}
 		saveOrphans(objectManager);
-		saveTables(objectManager, timestamp);
-
 		saveNamespaces(objectManager.getContributions());
+		
+		saveTables(objectManager, timestamp);	//Write the table last so if that is something went wrong we can know
 	}
 
 	private void saveNamespaces(KeyedHashSet[] contributions) throws IOException {
