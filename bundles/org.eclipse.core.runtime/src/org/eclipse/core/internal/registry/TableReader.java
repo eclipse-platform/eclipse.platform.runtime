@@ -29,7 +29,7 @@ public class TableReader {
 	//Informations representing the MAIN file
 	static final String MAIN = ".mainData"; //$NON-NLS-1$
 	static File mainDataFile;
-	DataInputStream input = null;
+	DataInputStream mainInput = null;
 	//	int size;
 
 	//Informations representing the EXTRA file
@@ -83,7 +83,7 @@ public class TableReader {
 
 	private void openInputFile() {
 		try {
-			input = new DataInputStream(new BufferedInputStream(new FileInputStream(mainDataFile)));
+			mainInput = new DataInputStream(new BufferedInputStream(new FileInputStream(mainDataFile)));
 		} catch (FileNotFoundException e) {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error readling the registry cache", e));
 		} catch (IOException e) {
@@ -103,7 +103,7 @@ public class TableReader {
 
 	private void closeInputFile() {
 		try {
-			input.close();
+			mainInput.close();
 		} catch (IOException e) {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error closing the registry cache", e));
 		}
@@ -173,7 +173,7 @@ public class TableReader {
 	public Object loadConfigurationElement(int offset) {
 		try {
 			goToInputFile(offset);
-			return basicLoadConfigurationElement(input, null);
+			return basicLoadConfigurationElement(mainInput, null);
 		} catch (IOException e) {
 			//Here an exception may happen because there are cases where we try to get a configuration element without being sure
 			if (DEBUG)
@@ -237,7 +237,7 @@ public class TableReader {
 	public Object loadExtension(int offset) {
 		try {
 			goToInputFile(offset);
-			return basicLoadExtension(input);
+			return basicLoadExtension(mainInput);
 		} catch (IOException e) {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error reading an extension (" + offset + ") from the registry cache", e));
 		}
@@ -250,10 +250,10 @@ public class TableReader {
 
 	private Extension basicLoadExtension(DataInputStream inputStream) throws IOException {
 		int self = inputStream.readInt();
-		String simpleId = readStringOrNull(input, false);
-		String namespace = readStringOrNull(input, false);
-		int[] children = readArray(input);
-		int extraData = input.readInt();
+		String simpleId = readStringOrNull(mainInput, false);
+		String namespace = readStringOrNull(mainInput, false);
+		int[] children = readArray(mainInput);
+		int extraData = mainInput.readInt();
 		return new Extension(self, simpleId, namespace, children, extraData);
 	}
 
@@ -263,22 +263,22 @@ public class TableReader {
 			int[] children = xpt.getRawChildren();
 			int nbrOfExtension = children.length;
 			for (int i = 0; i < nbrOfExtension; i++) {
-				Extension loaded = basicLoadExtension(input);
+				Extension loaded = basicLoadExtension(mainInput);
 				objects.add(loaded, holdObjects);
 			}
 
 			for (int i = 0; i < nbrOfExtension; i++) {
-				int nbrOfCe = input.readInt();
+				int nbrOfCe = mainInput.readInt();
 				for (int j = 0; j < nbrOfCe; j++) {
 					Bundle contributingBundle = null; //The contributing bundle for the extension for which we are reading the configuration elements
-					ConfigurationElement ce = basicLoadConfigurationElement(input, contributingBundle);
+					ConfigurationElement ce = basicLoadConfigurationElement(mainInput, contributingBundle);
 					objects.add(ce, holdObjects);
 					if (contributingBundle == null)
 						contributingBundle = ce.getContributingBundle();
 
 					int nbrSecondLevelCEs = ce.getRawChildren().length;
 					for (int k = 0; k < nbrSecondLevelCEs; k++) {
-						ConfigurationElement secondLevel = basicLoadConfigurationElement(input, contributingBundle);
+						ConfigurationElement secondLevel = basicLoadConfigurationElement(mainInput, contributingBundle);
 						objects.add(secondLevel, holdObjects);
 					}
 
@@ -302,9 +302,9 @@ public class TableReader {
 	}
 
 	private ExtensionPoint basicLoadExtensionPoint() throws IOException {
-		int self = input.readInt();
-		int[] children = readArray(input);
-		int extraData = input.readInt();
+		int self = mainInput.readInt();
+		int[] children = readArray(mainInput);
+		int extraData = mainInput.readInt();
 		return new ExtensionPoint(self, children, extraData);
 	}
 
@@ -320,7 +320,7 @@ public class TableReader {
 	}
 
 	private void goToInputFile(int offset) throws IOException {
-		input.skipBytes(offset);
+		mainInput.skipBytes(offset);
 	}
 
 	private void goToExtraFile(int offset) throws IOException {
@@ -403,7 +403,7 @@ public class TableReader {
 				Extension ext = loadFullExtension(objectManager);
 				int[] children = ext.getRawChildren();
 				for (int j = 0; j < children.length; j++) {
-					objectManager.add(loadConfigurationElementAndChildren(input, extraInput, 1, objectManager, null), true);
+					objectManager.add(loadConfigurationElementAndChildren(mainInput, extraInput, 1, objectManager, null), true);
 				}
 			}
 		} catch (IOException e) {
@@ -422,9 +422,9 @@ public class TableReader {
 		}
 
 		for (int i = 0; i < nbrOfExtension; i++) {
-			int nbrOfCe = input.readInt();
+			int nbrOfCe = mainInput.readInt();
 			for (int j = 0; j < nbrOfCe; j++) {
-				objectManager.add(loadConfigurationElementAndChildren(input, extraInput, 1, objectManager, null), true);
+				objectManager.add(loadConfigurationElementAndChildren(mainInput, extraInput, 1, objectManager, null), true);
 			}
 		}
 		return xpt;
@@ -443,7 +443,7 @@ public class TableReader {
 
 	private Extension loadFullExtension(RegistryObjectManager objectManager) throws IOException {
 		String[] tmp;
-		Extension loaded = basicLoadExtension(input);
+		Extension loaded = basicLoadExtension(mainInput);
 		tmp = basicLoadExtensionExtraData();
 		loaded.setLabel(tmp[0]);
 		loaded.setExtensionPointIdentifier(tmp[1]);
