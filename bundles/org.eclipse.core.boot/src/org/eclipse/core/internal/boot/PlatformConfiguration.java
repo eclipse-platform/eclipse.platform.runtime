@@ -238,7 +238,6 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		 * @see ISiteEntry#isUpdateable()
 		 */
 		public boolean isUpdateable() {
-			//FIXME: should add actual read-write check
 			return updateable;
 		}
 		
@@ -372,7 +371,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			
 			long result = 0;
 			if (!supportsDetection(resolvedURL)) {
-				// FIXME: this path should not be executed until we support running
+				// NOTE:  this path should not be executed until we support running
 				//        from an arbitrary URL (in particular from http server). For
 				//        now just compute stamp across the list of names. Eventually
 				//        when general URLs are supported we need to do better (factor
@@ -597,6 +596,138 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			return whitespace ? new String(chars) : s;
 		}
 	}
+	
+	/*
+	 * Element selector for use with "tiny" parser. Parser callers supply 
+	 * concrete selectors
+	 */	
+	public interface Selector {
+	
+		/*
+		 * Method is called to pre-select a specific xml type. Pre-selected
+		 * elements are then fully parsed and result in calls to full
+		 * select method.
+		 * @return <code>true</code> is the element should be considered,
+		 * <code>false</code> otherwise
+		 */
+		public boolean select(String entry);
+	
+		/*
+		 * Method is called with a fully parsed element.
+		 * @return <code>true</code> to select this element and terminate the parse,
+		 * <code>false</code> otherwise
+		 */
+		public boolean select(String element, HashMap attributes);
+	}
+
+	/*
+	 * "Tiny" xml parser. Performs a rudimentary parse of a well-formed xml file.
+	 * Is specifically geared to parsing plugin.xml files of "bootstrap" plug-ins
+	 * during the platform startup sequence before full xml plugin is available.
+	 */
+	public static class Parser {
+	
+		ArrayList elements = new ArrayList();
+	
+		/*
+		 * Construct parser for the specified file
+		 */
+		public Parser(File file) {
+			load(file);	
+		}
+	
+		/*
+		 * Return selected elements as an (attribute-name, attribute-value) map.
+		 * The name of the selected element is returned as the value of entry with
+		 * name "<element>".
+		 * @return attribute map for selected element, or <code>null</code>
+		 */
+		public HashMap getElement(Selector selector) {
+			if (selector == null)
+				return null;
+			
+			int result;
+			String element;
+			for (int i=0; i<elements.size(); i++) {
+				// make pre-parse selector call
+				element = (String)elements.get(i);
+				if (selector.select(element)) {
+					// parse selected entry
+					HashMap attributes = new HashMap();
+					String elementName;
+					int j;
+					// parse out element name
+					for (j = 0; j<element.length(); j++) {
+						if (Character.isWhitespace(element.charAt(j)))
+							break;
+					}
+					if (j>=element.length()) {
+						elementName = element;
+					} else {
+						elementName = element.substring(0,j);
+						element = element.substring(j);
+						// parse out attributes
+						StringTokenizer t = new StringTokenizer(element,"=\"");
+						boolean isKey = true;
+						String key = "";
+						while(t.hasMoreTokens()) {
+							String token = t.nextToken().trim();
+							if (!token.equals("")) {
+								// collect (key, value) pairs
+								if (isKey) {
+									key = token;
+									isKey = false;
+								} else {
+									attributes.put(key, token);
+									isKey = true;
+								}
+							}
+						}
+					}
+					// make post-parse selector call
+					if (selector.select(elementName, attributes)) {
+						attributes.put("<element>", elementName);
+						return attributes;
+					}
+				}			
+			}			
+			return null;
+		}
+	
+		private void load(File file) {	
+			if (!file.exists())
+				return;		
+			
+			// read file	
+			StringBuffer xml = new StringBuffer(4096);
+			char[] iobuf = new char[4096];
+			FileReader r = null;
+			try {
+				r = new FileReader(file);
+				int len = r.read(iobuf, 0, iobuf.length);
+				while (len != -1) {
+					xml.append(iobuf, 0, len);
+					len = r.read(iobuf, 0, iobuf.length);
+				}
+			} catch (Exception e) {
+				return;
+			} finally {
+				if (r != null) try {
+					r.close();
+				} catch (IOException e) {
+				}
+			}
+		
+			// parse out element tokens	
+			String xmlString = xml.toString();
+			StringTokenizer t = new StringTokenizer(xmlString,"<>");	
+			while(t.hasMoreTokens()) {
+				String token = t.nextToken().trim();
+				if (!token.equals(""))
+					elements.add(token);
+			}
+		}
+	}
 
 	private PlatformConfiguration(String configArg) throws IOException {
 		this.sites = new HashMap();
@@ -624,6 +755,11 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		// compute differences between configuration and actual content of the sites
 		// (base sites and link sites)
 		computeChangeStamp();
+		
+		// determine which plugins we will use to start the rest of the "kernel"
+		// (need to get core.runtime matching the executing core.boot and
+		// xerces matching the selected core.runtime)
+		locateDefaultPlugins();
 	}
 	
 	PlatformConfiguration(URL url) throws IOException {
@@ -912,7 +1048,6 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	 * @see IPlatformConfiguration#isUpdateable()
 	 */
 	public boolean isUpdateable() {
-		// FIXME: support r/o configuration
 		return true;
 	}
 	
@@ -996,8 +1131,6 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		
 	// This method is currently public because it is called by InternalPlatform.
 	// However, it is NOT intended as API
-	// FIXME: restructure the code so that InternalBootLoader passes the
-	// required information to InternalPlatform
 	public URL getPluginPath(String pluginId, String versionId) {
 		// return the plugin path element for the specified plugin. This method
 		// is used during boot processing to obtain "kernel" plugins whose
@@ -1355,7 +1488,10 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		
 		// 	make sure we have a valid link specification
 		try {
-			link = "file:"+link;
+			File target = new File(link);
+			link = "file:" + target.getAbsolutePath().replace(File.separatorChar,'/');
+			if (!link.endsWith("/"))
+				link += "/"; // sites must be directories
 			siteURL = new URL(link);
 		} catch(MalformedURLException e) {
 			if (DEBUG)
@@ -1363,23 +1499,21 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			return;
 		}
 			
-		// create site for link
+		// process the link		
+		linkSite = (SiteEntry) externalLinkSites.get(siteURL);
+		if (linkSite != null) {
+			// we already have a site for this link target, update it if needed
+			linkSite.updateable = updateable; 
+			linkSite.linkFileName = linkFile.getAbsolutePath();
+		} else {
+			// this is a link to a new target so create site for it
+			linkSite = (SiteEntry) createSiteEntry(siteURL, linkSitePolicy);
+			linkSite.updateable = updateable;
+			linkSite.linkFileName = linkFile.getAbsolutePath();
+		}
 		
-		// FIXME: currently we are blowing away prio link state. In the new
-		//        scheme of things just treat link as any other site 
-		//        (once initialized, maintain site state).
-		//        Keep track of link changes to drive reconciliation
-		//        semantics. When a link is deleted, remove the site
-		linkSite = (SiteEntry) createSiteEntry(siteURL, linkSitePolicy);
-		linkSite.updateable = updateable;
-		linkSite.linkFileName = linkFile.getAbsolutePath();
-		SiteEntry lastLinkSite = (SiteEntry) externalLinkSites.get(siteURL);
-		if (lastLinkSite != null) {
-			// restore previous change stamps
-			linkSite.lastChangeStamp = lastLinkSite.lastChangeStamp;
-			linkSite.lastFeaturesChangeStamp = lastLinkSite.lastFeaturesChangeStamp;
-			linkSite.lastPluginsChangeStamp = lastLinkSite.lastPluginsChangeStamp; 
-		}			
+		// configure the new site
+		// NOTE: duplicates are not replaced (first one in wins) 
 		configureSite(linkSite);
 		if (DEBUG)
 			debug("   "+(updateable?"R/W -> ":"R/O -> ")+siteURL.toString());
@@ -1470,7 +1604,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			if (!se.isExternallyLinkedSite())
 				configureSite(se);
 			else
-				// remember external link site state, but do not configure
+				// remember external link site state, but do not configure at this point
 				externalLinkSites.put(se.getURL(),se); 
 			se = (SiteEntry) loadSite(props, CFG_SITE+"."+i, null);	
 		}
@@ -1650,13 +1784,22 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		}
 	}
 	
-	private boolean isReadWriteLocation(URL url) {
-		if (!url.getProtocol().equals("file"))
-			return false;
-			
-		File f = new File(url.getFile());
-		return f.canWrite();
-	}
+	private void locateDefaultPlugins() {
+		// parse core.boot plugin.xml
+		// -> get its import for core.runtime
+		
+		// search plugin path for best match for core.runtime
+		// -> parse all found to get correct info
+		
+		// parse core.runtime plugin.xml
+		//-> get its import for xerces
+		
+		// search plugin path for best match for xerces
+		// -> parse all found to get correct info
+		
+		// parse xerces plugin.xml
+		// -> get its <library> entries ... all of them	
+	}	
 	
 	private void write(PrintWriter w) {
 		// write header
