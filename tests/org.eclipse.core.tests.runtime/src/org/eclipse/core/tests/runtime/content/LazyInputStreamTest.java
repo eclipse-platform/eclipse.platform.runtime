@@ -11,11 +11,7 @@
 package org.eclipse.core.tests.runtime.content;
 
 import java.io.*;
-import java.io.ByteArrayInputStream;
-import java.io.UnsupportedEncodingException;
 import junit.framework.*;
-import junit.framework.Test;
-import junit.framework.TestCase;
 import org.eclipse.core.internal.content.LazyInputStream;
 
 public class LazyInputStreamTest extends TestCase {
@@ -117,8 +113,10 @@ public class LazyInputStreamTest extends TestCase {
 		assertEquals("2.5", 17, stream.available());
 		assertEquals("2.6", 13, stream.getOffset());
 		stream.reset();
-		assertEquals("2.7", 0, stream.getOffset());
-		assertEquals("2.8", 30, stream.available());
+		assertEquals("2.7", 17, stream.available());
+		assertEquals("2.8", 13, stream.getOffset());
+		stream.rewind();
+		assertEquals("3.0", 0, stream.getOffset());
 	}
 
 	public void testContentHasEOF() throws IOException {
