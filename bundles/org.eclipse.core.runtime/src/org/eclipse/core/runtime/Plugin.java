@@ -18,8 +18,6 @@ import java.util.*;
 import org.eclipse.core.internal.runtime.*;
 import org.eclipse.osgi.service.environment.EnvironmentInfo;
 import org.osgi.framework.*;
-import org.osgi.framework.Bundle;
-import org.osgi.framework.BundleException;
 import org.osgi.util.tracker.ServiceTracker;
 
 /**
@@ -155,8 +153,6 @@ import org.osgi.util.tracker.ServiceTracker;
  * }
  * </pre>
  * </p>
- * @deprecated In eclipse 3.0, the concept of plugin has been renamed to Bundle and slightly modified and enhanced (see the  porting guide further information).
- * The responsibilities of the plugin class are now being spread across {@link org.osgi.framework.Bundle Bundle}, {@link org.osgi.framework.BundleActivator BundleActivator}
  */
 public abstract class Plugin implements BundleActivator {
 	protected Bundle bundle;
@@ -182,7 +178,6 @@ public abstract class Plugin implements BundleActivator {
 	 * </p>
 	 * 
 	 * @since 2.0
-	 * @deprecated See BundleHelper
 	 */
 	public static final String PREFERENCES_DEFAULT_OVERRIDE_BASE_NAME = "preferences"; //$NON-NLS-1$
 	public static final String PREFERENCES_DEFAULT_OVERRIDE_FILE_NAME = PREFERENCES_DEFAULT_OVERRIDE_BASE_NAME + ".ini"; //$NON-NLS-1$
@@ -197,11 +192,49 @@ public abstract class Plugin implements BundleActivator {
 	private Preferences preferences = null;
 
 	/**
+	 * Creates a new plug-in runtime object.
+	 * <p>
+	 * Plug-in runtime classes are <code>BundleActivators</code> and so must
+	 * have an default constructor.  This method is called by the runtime when the associated 
+	 * bundle is being activated.  The resultant instance is not managed by the runtime and
+	 * so should be remembered by the client (typically using a Singleton pattern).
+	 * This method will never be called for plug-ins operating in compatibility mode.
+	 * <b>Clients must never explicitly call this method.</b>
+	 * </p> 
+	 * <p>
+	 * Note: The class loader typically has monitors acquired during invocation of this method.  It is 
+	 * strongly recommended that this method avoid synchronized blocks or other thread locking mechanisms,
+	 * as this would lead to deadlock vulnerability.
+	 * </p>
+	 * @since 3.0
+	 */
+	public Plugin() {
+	}
+	/**
+	 * Creates a new plug-in runtime object associated with the given bundle context.
+	 * The resultant instance is not managed by the runtime and
+	 * so should be remembered by the client (typically using a Singleton pattern).
+	 * This method must never be called for plug-ins operating in compatibility mode.
+	 * <p>
+	 * Plug-in runtime classes are <code>BundleActivators</code> and so must
+	 * have an default constructor.
+	 * Clients may call this method if they are not using this class as their bundle activator.
+	 * </p><p>
+	 * Note: The class loader typically has monitors acquired during invocation of this method.  It is 
+	 * strongly recommended that this method avoid synchronized blocks or other thread locking mechanisms,
+	 * as this would lead to deadlock vulnerability.
+	 * </p>
+	 * @param context the bundle context
+	 * @since 3.0
+	 */
+	public Plugin(BundleContext context) {
+	}
+	/**
 	 * Creates a new plug-in runtime object for the given plug-in descriptor.
 	 * <p>
 	 * Instances of plug-in runtime classes are automatically created 
 	 * by the platform in the course of plug-in activation.
-	 * <b>Clients must never explicitly instantiate a plug-in runtime class.</b>
+	 * <b>Clients must never explicitly call this method.</b>
 	 * </p>
 	 * <p>
 	 * Note: The class loader typically has monitors acquired during invocation of this method.  It is 
@@ -211,10 +244,11 @@ public abstract class Plugin implements BundleActivator {
 	 *
 	 * @param descriptor the plug-in descriptor
 	 * @see #getDescriptor
-	 * @deprecated 
+	 * @deprecated The new runtime no longer uses <code>IPluginDescriptors</code> or manages the instances
+	 * of the plug-in runtime classes.  Legacy plug-ins using the compatibility layer can continue to implement 
+	 * this method but new runtime plug-ins need not implement it as it will never be called.  Instead they should 
+	 * implement one of @link #Plugin() Plugin() or @link #Plugin(BundleContext) Plugin(BundleContext).
 	 */
-	public Plugin() {
-	}
 	public Plugin(IPluginDescriptor descriptor) {
 		Assert.isNotNull(descriptor);
 		Assert.isTrue(!descriptor.isPluginActivated(), Policy.bind("plugin.deactivatedLoad", this.getClass().getName(), descriptor.getUniqueIdentifier() + " is not activated")); //$NON-NLS-1$ //$NON-NLS-2$
@@ -291,7 +325,6 @@ public abstract class Plugin implements BundleActivator {
 	 * </p>
 	 *
 	 * @return a local file system path
-	 * @deprecated See @link Platform#getStateLocation() BundleHelper#getStateLocation()
 	 */
 	public final IPath getStateLocation() {
 		return InternalPlatform.getDefault().getStateLocation(bundle,true);
@@ -527,8 +560,6 @@ public abstract class Plugin implements BundleActivator {
 	 * @since 2.0
 	 */
 	private void applyInternalPluginDefaultOverrides() {
-
-		
 		// use URLs so we can find the file in fragments too
 		URL baseURL = FindSupport.find(bundle, new Path(PREFERENCES_DEFAULT_OVERRIDE_FILE_NAME));
 
@@ -679,7 +710,10 @@ public abstract class Plugin implements BundleActivator {
 	 *
 	 * @exception CoreException if this method fails to shut down
 	 *   this plug-in
-	 * @deprecated
+	 * @deprecated Legacy plug-ins using the compatibility 
+	 * layer will continue to be stopped using this method however the new runtime 
+	 * no longer uses it.  As such, new runtime plug-ins need not implement it rather they should 
+	 * implement @link #stop() stop().
 	 */
 	public void shutdown() throws CoreException {
 		Method m;
@@ -739,7 +773,10 @@ public abstract class Plugin implements BundleActivator {
 	 * <b>Clients must never explicitly call this method.</b>
 	 *
 	 * @exception CoreException if this plug-in did not start up properly
-	 * @deprecated
+	 * @deprecated Legacy plug-ins using the compatibility 
+	 * layer will continue to be started using this method however the new runtime 
+	 * no longer uses it.  As such, new runtime plug-ins need not implement it rather they should 
+	 * implement @link #start() start().
 	 */
 	public void startup() throws CoreException {
 	}
@@ -751,28 +788,105 @@ public abstract class Plugin implements BundleActivator {
 		return descriptor.toString();
 	}
 	
+	/**
+	 * Starts up this plug-in.
+	 * <p>
+	 * This method should be overridden in subclasses that need to do something
+	 * when this plug-in is started.  Implementors should call the inherited method
+	 * at the first possible point to ensure that any system requirements can be met.
+	 * </p>
+	 * <p>
+	 * If this method throws an exception, it is taken as an indication that
+	 * plug-in initialization has failed; as a result, the plug-in will not
+	 * be activated; moreover, the plug-in will be marked as disabled and 
+	 * ineligible for activation for the duration.
+	 * </p>
+	 * <p>
+	 * Plug-in startup code should be robust. In the event of a startup failure,
+	 * the plug-in's <code>shutdown</code> method will be invoked automatically,
+	 * in an attempt to close open files, etc.
+	 * </p>
+	 * <p>
+	 * Note 1: This method is automatically invoked by the platform 
+	 * the first time any code in the plug-in is executed.
+	 * </p>
+	 * <p>
+	 * Note 2: This method is intended to perform simple initialization 
+	 * of the plug-in environment. The platform may terminate initializers 
+	 * that do not complete in a timely fashion.
+	 * </p>
+	 * <p>
+	 * Note 3: The class loader typically has monitors acquired during invocation of this method.  It is 
+	 * strongly recommended that this method avoid synchronized blocks or other thread locking mechanisms,
+	 * as this would lead to deadlock vulnerability.
+	 * </p>
+	 * <p>
+	 * Note 4: This method is not called on plug-ins operating in compatibility mode.
+	 * </p>
+	 * <b>Clients must never explicitly call this method.</b>
+	 *
+	 * @exception BundleException if this plug-in did not start up properly
+	 * @since 3.0
+	 */
 	public void start(BundleContext context) throws BundleException{
 		this.context = context;
 		bundle = context.getBundle();
 	}
-	
+
+	/**
+	 * Stops this plug-in.
+	 * <p>
+	 * This method should be re-implemented in subclasses that need to do something
+	 * when the plug-in is shut down.  Implementors should call the inherited method
+	 * as late as possible to ensure that any system requirements can be met.
+	 * </p>
+	 * <p>
+	 * Plug-in shutdown code should be robust. In particular, this method
+	 * should always make an effort to shut down the plug-in. Furthermore,
+	 * the code should not assume that the plug-in was started successfully,
+	 * as this method will be invoked in the event of a failure during startup.
+	 * </p>
+	 * <p>
+	 * Note 1: If a plug-in has been started, this method will be automatically
+	 * invoked by the platform when the platform is shut down.
+	 * </p>
+	 * <p>
+	 * Note 2: This method is intended to perform simple termination
+	 * of the plug-in environment. The platform may terminate invocations
+	 * that do not complete in a timely fashion.
+	 * </p>
+	 * <p>
+	 * Note 3: This method is not called on plug-ins operating in compatibility mode.
+	 * </p>
+	 * <b>Clients must never explicitly call this method.</b>
+	 *
+	 * @exception BundleException if this method fails to shut down
+	 *   this plug-in
+	 * @since 3.0
+	 */
 	public void stop(BundleContext context) throws BundleException {
 		context = null;
 		bundle = null;
 	}
-	public BundleContext getBundleContext() {
-		return context;
-	}
+	
+	// TODO do we really want to support this?  What are the usecases?  Could the function just
+	// be on Platform?
 	public EnvironmentInfo getEnvironmentService() {
 		ServiceTracker tracker = null;
 		try {
-			tracker = new ServiceTracker(getBundleContext(), EnvironmentInfo.class.getName(), null);
+			tracker = new ServiceTracker(context, EnvironmentInfo.class.getName(), null);
 			tracker.open();
 			return (EnvironmentInfo) tracker.getService();
 		} finally {
 			tracker.close();
 		}
 	}
+	/**
+	 * Returns the bundle with which this plug-in is associated.
+	 * 
+	 * @return the associated bundle
+	 * @since 3.0
+	 */
 	public Bundle getBundle() {
 		return bundle;
 	}
