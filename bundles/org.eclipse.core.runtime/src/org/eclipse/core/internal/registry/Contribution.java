@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.eclipse.core.internal.registry;
 
+import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.runtime.Platform;
 import org.osgi.framework.Bundle;
 
@@ -39,6 +40,7 @@ public class Contribution implements KeyedElement {
 
 	Contribution(long id) {
 		contributingBundleId = id;
+		contributingBundle = InternalPlatform.getDefault().getBundleContext().getBundle(contributingBundleId);
 	}
 
 	void setRawChildren(int[] children) {
