@@ -356,6 +356,11 @@ public final class InternalPlatform implements IPlatform {
 		} else {
 			metaArea = new DataArea();
 			metaArea.setInstanceDataLocation(location);
+			try {
+				metaArea.createLockFile();
+			} catch (CoreException e) {
+				throw new IllegalStateException(e.getStatus().getMessage());
+			}
 		}
 		metaArea.setKeyringFile(keyringFile);
 		metaArea.setPasswork(password);			
@@ -466,7 +471,7 @@ public final class InternalPlatform implements IPlatform {
 		options = (DebugOptions) debugTracker.getService(); //TODO This is not good, but is avoids problems
 		initializeDebugFlags();
 		initialized = true;
-		platformLog = new PlatformLogWriter(getMetaArea().getLogLocation().toFile());
+		platformLog = new PlatformLogWriter();
 		addLogListener(platformLog);
 		if ("true".equals(System.getProperty("eclipse.consoleLog"))) {
 			consoleLog = new PlatformLogWriter(System.out);
