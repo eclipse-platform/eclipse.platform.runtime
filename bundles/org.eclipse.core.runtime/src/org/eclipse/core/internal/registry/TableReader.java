@@ -11,7 +11,9 @@
 package org.eclipse.core.internal.registry;
 
 import java.io.*;
+import java.util.*;
 import java.util.HashMap;
+import java.util.Map;
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.runtime.*;
 import org.osgi.framework.Bundle;
@@ -51,6 +53,8 @@ public class TableReader {
 	//Status code
 	private static final byte fileError = 0;
 	private static final boolean DEBUG = false;
+
+	private boolean holdObjects = false;
 
 	static void setMainDataFile(File main) {
 		mainDataFile = main;
@@ -187,14 +191,15 @@ public class TableReader {
 		int misc = is.readInt();//this is set in second level CEs, to indicate where in the extra data file the children ces are
 		String[] propertiesAndValue = readPropertiesAndValue(is);
 		int[] children = readArray(is);
-		actualContributingBundle = getBundle(contributingBundle);
+		if (actualContributingBundle == null)
+			actualContributingBundle = getBundle(contributingBundle);
 		return new ConfigurationElement(self, actualContributingBundle, name, propertiesAndValue, children, misc, parentId, parentType);
 	}
 
 	public Object loadThirdLevelConfigurationElements(int offset, RegistryObjectManager objectManager) {
 		try {
 			goToExtraFile(offset);
-			return loadConfigurationElementAndChildren(extraInput, objectManager, null);
+			return loadConfigurationElementAndChildren(null, extraInput, 3, objectManager, null);
 		} catch (IOException e) {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error reading a third level configuration element (" + offset + ") from the registry cache", e));
 			return null;
@@ -202,14 +207,18 @@ public class TableReader {
 	}
 
 	//Read a whole configuration element subtree from the given input stream.
-	private ConfigurationElement loadConfigurationElementAndChildren(DataInputStream is, RegistryObjectManager objectManager, Bundle actualContributingBundle) throws IOException {
-		ConfigurationElement ce = basicLoadConfigurationElement(is, actualContributingBundle);
+	private ConfigurationElement loadConfigurationElementAndChildren(DataInputStream is, DataInputStream extraIs, int depth, RegistryObjectManager objectManager, Bundle actualContributingBundle) throws IOException {
+		DataInputStream currentStream = is;
+		if (depth > 2)
+			currentStream = extraIs;
+
+		ConfigurationElement ce = basicLoadConfigurationElement(currentStream, actualContributingBundle);
 		if (actualContributingBundle == null)
 			actualContributingBundle = ce.getContributingBundle();
 		int[] children = ce.getRawChildren();
 		for (int i = 0; i < children.length; i++) {
-			ConfigurationElement tmp = loadConfigurationElementAndChildren(is, objectManager, actualContributingBundle);
-			objectManager.add(tmp, false);
+			ConfigurationElement tmp = loadConfigurationElementAndChildren(currentStream, extraIs, depth + 1, objectManager, actualContributingBundle);
+			objectManager.add(tmp, holdObjects);
 		}
 		return ce;
 	}
@@ -255,7 +264,7 @@ public class TableReader {
 			int nbrOfExtension = children.length;
 			for (int i = 0; i < nbrOfExtension; i++) {
 				Extension loaded = basicLoadExtension(input);
-				objects.add(loaded, false);
+				objects.add(loaded, holdObjects);
 			}
 
 			for (int i = 0; i < nbrOfExtension; i++) {
@@ -263,14 +272,14 @@ public class TableReader {
 				for (int j = 0; j < nbrOfCe; j++) {
 					Bundle contributingBundle = null; //The contributing bundle for the extension for which we are reading the configuration elements
 					ConfigurationElement ce = basicLoadConfigurationElement(input, contributingBundle);
-					objects.add(ce, false);
+					objects.add(ce, holdObjects);
 					if (contributingBundle == null)
 						contributingBundle = ce.getContributingBundle();
 
 					int nbrSecondLevelCEs = ce.getRawChildren().length;
 					for (int k = 0; k < nbrSecondLevelCEs; k++) {
 						ConfigurationElement secondLevel = basicLoadConfigurationElement(input, contributingBundle);
-						objects.add(secondLevel, false);
+						objects.add(secondLevel, holdObjects);
 					}
 
 				}
@@ -377,47 +386,70 @@ public class TableReader {
 		}
 	}
 
-	public ExtensionPoint readAllExtensionPointTree(RegistryObjectManager objectManager) {
+	public boolean readAllCache(RegistryObjectManager objectManager) {
 		try {
-			ExtensionPoint xpt = basicLoadExtensionPoint();
-			String[] tmp = basicLoadExtensionPointExtraData();
-			xpt.setLabel(tmp[0]);
-			xpt.setSchema(tmp[1]);
-			xpt.setUniqueIdentifier(tmp[2]);
-			xpt.setNamespace(tmp[3]);
-			xpt.setBundleId(Long.parseLong(tmp[4]));
-			int[] children = xpt.getRawChildren();
-			int nbrOfExtension = children.length;
-			for (int i = 0; i < nbrOfExtension; i++) {
-				Extension loaded = basicLoadExtension(input);
-				tmp = basicLoadExtensionExtraData();
-				loaded.setLabel(tmp[0]);
-				loaded.setExtensionPointIdentifier(tmp[1]);
-				objectManager.add(loaded, false);
+			int size = objectManager.getExtensionPoints().size();
+			for (int i = 0; i < size; i++) {
+				objectManager.add(readAllExtensionPointTree(objectManager), holdObjects);
 			}
-
-			for (int i = 0; i < nbrOfExtension; i++) {
-				int nbrOfCe = input.readInt();
-				for (int j = 0; j < nbrOfCe; j++) {
-					Bundle contributingBundle = null; //The contributing bundle for the extension for which we are reading the configuration elements
-					ConfigurationElement ce = basicLoadConfigurationElement(input, contributingBundle);
-					objectManager.add(ce, false);
-					if (contributingBundle == null)
-						contributingBundle = ce.getContributingBundle();
-
-					int nbrSecondLevelCEs = ce.getRawChildren().length;
-					for (int k = 0; k < nbrSecondLevelCEs; k++) {
-						ConfigurationElement secondLevel = basicLoadConfigurationElement(input, contributingBundle);
-						objectManager.add(secondLevel, false);
-						loadConfigurationElementAndChildren(extraInput, objectManager, contributingBundle);
-					}
+			int numberOfOrphanExtensions = 0;
+			Set orphans = objectManager.getOrphanExtensions().entrySet();
+			for (Iterator iter = orphans.iterator(); iter.hasNext();) {
+				Map.Entry entry = (Map.Entry) iter.next();
+				numberOfOrphanExtensions += ((int[]) entry.getValue()).length;
+			}
+			//Read the extensions and configuration elements of the orphans
+			for (int i = 0; i < numberOfOrphanExtensions; i++) {
+				Extension ext = loadFullExtension(objectManager);
+				int[] children = ext.getRawChildren();
+				for (int j = 0; j < children.length; j++) {
+					objectManager.add(loadConfigurationElementAndChildren(input, extraInput, 1, objectManager, null), true);
 				}
 			}
-			return xpt;
 		} catch (IOException e) {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error while reading the whole cache", e));
+			return false;
 		}
-		return null;
+		return true;
+	}
+
+	public ExtensionPoint readAllExtensionPointTree(RegistryObjectManager objectManager) throws IOException {
+		ExtensionPoint xpt = loadFullExtensionPoint();
+		int[] children = xpt.getRawChildren();
+		int nbrOfExtension = children.length;
+		for (int i = 0; i < nbrOfExtension; i++) {
+			loadFullExtension(objectManager);
+		}
+
+		for (int i = 0; i < nbrOfExtension; i++) {
+			int nbrOfCe = input.readInt();
+			for (int j = 0; j < nbrOfCe; j++) {
+				objectManager.add(loadConfigurationElementAndChildren(input, extraInput, 1, objectManager, null), true);
+			}
+		}
+		return xpt;
+	}
+
+	private ExtensionPoint loadFullExtensionPoint() throws IOException {
+		ExtensionPoint xpt = basicLoadExtensionPoint();
+		System.out.println(xpt.getObjectId());
+		String[] tmp = basicLoadExtensionPointExtraData();
+		xpt.setLabel(tmp[0]);
+		xpt.setSchema(tmp[1]);
+		xpt.setUniqueIdentifier(tmp[2]);
+		xpt.setNamespace(tmp[3]);
+		xpt.setBundleId(Long.parseLong(tmp[4]));
+		return xpt;
+	}
+
+	private Extension loadFullExtension(RegistryObjectManager objectManager) throws IOException {
+		String[] tmp;
+		Extension loaded = basicLoadExtension(input);
+		tmp = basicLoadExtensionExtraData();
+		loaded.setLabel(tmp[0]);
+		loaded.setExtensionPointIdentifier(tmp[1]);
+		objectManager.add(loaded, holdObjects);
+		return loaded;
 	}
 
 	public HashMap loadOrphans() {
@@ -436,4 +468,7 @@ public class TableReader {
 		}
 	}
 
+	public void setHoldObjects(boolean holdObjects) {
+		this.holdObjects = holdObjects;
+	}
 }

@@ -56,7 +56,7 @@ public class ExtensionPoint extends NestedRegistryModelObject {
 
 		//The extension point has been loaded from the cache. 
 		String[] result = null;
-		if (extraInformation == null || (result = (String[]) ((SoftReference) extraInformation).get()) == null) {
+		if (extraInformation == null || (result = ((extraInformation instanceof SoftReference) ?  (String[]) ((SoftReference) extraInformation).get() : (String[]) extraInformation)) == null) {
 			result = new TableReader().loadExtensionPointExtraData(extraDataOffset);
 			extraInformation = new SoftReference(result);
 		}

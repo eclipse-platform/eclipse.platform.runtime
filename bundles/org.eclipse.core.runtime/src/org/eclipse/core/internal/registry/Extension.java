@@ -78,7 +78,7 @@ public class Extension extends NestedRegistryModelObject {
 
 		//The extension has been loaded from the cache. 
 		String[] result = null;
-		if (extraInformation == null || (result = (String[]) ((SoftReference) extraInformation).get()) == null) {
+		if (extraInformation == null || (result = ((extraInformation instanceof SoftReference) ?  (String[]) ((SoftReference) extraInformation).get() : (String[]) extraInformation)) == null) {
 			result = new TableReader().loadExtensionExtraData(extraDataOffset);
 			extraInformation = new SoftReference(result);
 		}

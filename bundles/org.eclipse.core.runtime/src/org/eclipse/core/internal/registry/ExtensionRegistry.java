@@ -162,9 +162,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	// all registry change listeners
 	private transient ListenerList listeners = new ListenerList();
 
-	// extensions without extension point
-//	private Map orphanExtensions = new HashMap(11);
-
+	//the objects consistuting the registry
 	private RegistryObjectManager registryObjects;
 
 	RegistryObjectManager getObjectManager() {

@@ -12,8 +12,7 @@ package org.eclipse.core.internal.registry;
 
 import java.lang.ref.SoftReference;
 import java.util.*;
-import java.util.HashSet;
-import java.util.Set;
+import org.eclipse.core.internal.runtime.InternalPlatform;
 
 /**
  * This class manage all the object from the registry but does not deal with their dependencies.
@@ -30,37 +29,41 @@ public class RegistryObjectManager {
 	static final int[] EMPTY_INT_ARRAY = new int[0];
 	static final String[] EMPTY_STRING_ARRAY = new String[0];
 
-	public static int UNKNOWN = -1;
+	static int UNKNOWN = -1;
 
 	// key: extensionPointName, value: object id
-	HashtableOfStringAndInt extensionPoints; //This is loaded on startup. Then entries can be added when loading a new plugin from the xml.
+	private HashtableOfStringAndInt extensionPoints; //This is loaded on startup. Then entries can be added when loading a new plugin from the xml.
 	// key: object id, value: an object
-	protected ReferenceMap cache; //Entries are added by getter. The structure is not thread safe.
+	private ReferenceMap cache; //Entries are added by getter. The structure is not thread safe.
 	//key: int, value: int
 	private HashtableOfInt fileOffsets; //This is read once on startup when loading from the cache. Entries are never added here. They are only removed to prevent "removed" objects to be reloaded. 
 
-	int nextId = 1;	//This is only used to get the next number available.
+	private int nextId = 1; //This is only used to get the next number available.
 
 	//Those two data structures are only used when the addition or the removal of a plugin occurs.
 	//They are used to keep track on a bundle basis of the extension being added or removed
-	KeyedHashSet newContributions; //represents the bundles added and removed during this session.
+	private KeyedHashSet newContributions; //represents the bundles added during this session.
 	private Object formerContributions; //represents the bundles encountered in previous sessions. This is loaded lazily.
-	Object orphanExtensions;
-	
+	private Object orphanExtensions;
+
 	private KeyedHashSet heldObjects = new KeyedHashSet(); //strong reference to the objects that must be hold on to
 
 	//Indicate if objects have been removed or added from the table. This only needs to be set in a couple of places (addNamespace and removeNamespace)
 	private boolean isDirty = false;
 
-	protected boolean fromCache = false;
+	private boolean fromCache = false;
 
 	public RegistryObjectManager() {
 		Handle.objectManager = this;
 		extensionPoints = new HashtableOfStringAndInt();
-		cache = new ReferenceMap(ReferenceMap.HARD, ReferenceMap.SOFT);
+		if ("true".equals(System.getProperty(InternalPlatform.PROP_NO_REGISTRY_FLUSHING))) { //$NON-NLS-1$
+			cache = new ReferenceMap(ReferenceMap.HARD, ReferenceMap.HARD);
+		} else {
+			cache = new ReferenceMap(ReferenceMap.HARD, ReferenceMap.SOFT);
+		}
 		newContributions = new KeyedHashSet();
 	}
-	
+
 	/**
 	 * Initialize the object manager. Return true if the initialization succeeded, false otherwise
 	 */
@@ -74,6 +77,13 @@ public class RegistryObjectManager {
 		extensionPoints = (HashtableOfStringAndInt) results[1];
 		nextId = ((Integer) results[2]).intValue();
 		fromCache = true;
+
+		if ("true".equals(System.getProperty(InternalPlatform.PROP_NO_LAZY_CACHE_LOADING))) { //$NON-NLS-1$
+			reader.setHoldObjects(true);
+			markOrphansHasDirty(getOrphans());
+			reader.readAllCache(this);
+			formerContributions = getFormerContributions();
+		}
 		return true;
 	}
 
@@ -110,17 +120,17 @@ public class RegistryObjectManager {
 
 	synchronized boolean hasContribution(long id) {
 		Object result = newContributions.getByKey(new Long(id));
-		if (result == null) 
+		if (result == null)
 			result = getFormerContributions().getByKey(new Long(id));
 		return result != null;
 	}
-	
+
 	private KeyedHashSet getFormerContributions() {
 		KeyedHashSet result;
 		if (fromCache == false)
 			return new KeyedHashSet(0);
-		
-		if (formerContributions == null || (result = ((KeyedHashSet)( (formerContributions instanceof SoftReference) ? ((SoftReference)formerContributions).get() : formerContributions))) == null) {
+
+		if (formerContributions == null || (result = ((KeyedHashSet) ((formerContributions instanceof SoftReference) ? ((SoftReference) formerContributions).get() : formerContributions))) == null) {
 			TableReader reader = new TableReader();
 			result = reader.loadNamespaces();
 			formerContributions = new SoftReference(result);
@@ -344,7 +354,7 @@ public class RegistryObjectManager {
 		if (removed == false) {
 			removed = getFormerContributions().removeByKey(new Long(bundleId));
 			if (removed)
-				formerContributions = getFormerContributions();	//This forces the removed namespace to stay around, so we do not forget about removed namespaces
+				formerContributions = getFormerContributions(); //This forces the removed namespace to stay around, so we do not forget about removed namespaces
 		}
 
 		if (removed) {
@@ -353,24 +363,24 @@ public class RegistryObjectManager {
 		}
 
 	}
-	
-	private Map getOrphans() {
+
+	synchronized private Map getOrphans() {
 		Object result = orphanExtensions;
 		if (orphanExtensions == null && !fromCache) {
 			result = new HashMap();
 			orphanExtensions = result;
-		} else if (orphanExtensions == null || (result = ((HashMap)( (orphanExtensions instanceof SoftReference) ? ((SoftReference) orphanExtensions).get() : orphanExtensions))) == null) {
+		} else if (orphanExtensions == null || (result = ((HashMap) ((orphanExtensions instanceof SoftReference) ? ((SoftReference) orphanExtensions).get() : orphanExtensions))) == null) {
 			TableReader reader = new TableReader();
 			result = reader.loadOrphans();
 			orphanExtensions = new SoftReference(result);
 		}
 		return (HashMap) result;
 	}
-	
+
 	void addOrphans(String extensionPoint, int[] extensions) {
 		Map orphans = getOrphans();
 		int[] existingOrphanExtensions = (int[]) orphans.get(extensionPoint);
-		
+
 		if (existingOrphanExtensions != null) {
 			// just add
 			int[] newOrphanExtensions = new int[existingOrphanExtensions.length + extensions.length];
@@ -385,10 +395,10 @@ public class RegistryObjectManager {
 		return;
 	}
 
-	private void markOrphansHasDirty(Map orphans) {
+	void markOrphansHasDirty(Map orphans) {
 		orphanExtensions = orphans;
 	}
-	
+
 	void addOrphan(String extensionPoint, int extension) {
 		Map orphans = getOrphans();
 		int[] existingOrphanExtensions = (int[]) orphans.get(extensionPoint);
@@ -406,7 +416,7 @@ public class RegistryObjectManager {
 		markOrphansHasDirty(orphans);
 		return;
 	}
-	
+
 	int[] removeOrphans(String extensionPoint) {
 		Map orphans = getOrphans();
 		int[] existingOrphanExtensions = (int[]) orphans.remove(extensionPoint);
@@ -415,27 +425,47 @@ public class RegistryObjectManager {
 		}
 		return existingOrphanExtensions;
 	}
-	
+
 	boolean removeOrphan(String extensionPoint, int extension) {
 		Map orphans = getOrphans();
 		int[] existingOrphanExtensions = (int[]) orphans.get(extensionPoint);
-		
+
 		if (existingOrphanExtensions == null)
 			return false;
-		
+
 		markOrphansHasDirty(orphans);
 		int newSize = existingOrphanExtensions.length - 1;
 		if (newSize == 0) {
 			orphans.remove(extensionPoint);
 			return true;
 		}
-		
+
 		int[] newOrphanExtensions = new int[existingOrphanExtensions.length - 1];
 		for (int i = 0, j = 0; i < existingOrphanExtensions.length; i++)
 			if (extension != existingOrphanExtensions[i])
 				newOrphanExtensions[j++] = existingOrphanExtensions[i];
-		
+
 		orphans.put(extensionPoint, newOrphanExtensions);
 		return true;
+	}
+
+	//This method is only used by the writer to reach in
+	Map getOrphanExtensions() {
+		return getOrphans();
+	}
+
+	//	This method is only used by the writer to reach in
+	int getNextId() {
+		return nextId;
+	}
+
+	//	This method is only used by the writer to reach in
+	HashtableOfStringAndInt getExtensionPoints() {
+		return extensionPoints;
+	}
+
+	//	This method is only used by the writer to reach in
+	public KeyedHashSet[] getContributions() {
+		return new KeyedHashSet[] {newContributions, getFormerContributions()};
 	}
 }

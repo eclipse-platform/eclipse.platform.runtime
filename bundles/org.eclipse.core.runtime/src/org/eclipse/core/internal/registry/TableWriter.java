@@ -12,8 +12,6 @@ package org.eclipse.core.internal.registry;
 
 import java.io.*;
 import java.util.*;
-import java.util.HashMap;
-import java.util.Set;
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.runtime.*;
 
@@ -89,22 +87,28 @@ public class TableWriter {
 
 	private void saveExtensionRegistry(RegistryObjectManager objectManager, long timestamp) throws IOException {
 		ExtensionPointHandle[] points = objectManager.getExtensionPointsHandles();
-		offsets = new HashtableOfInt(objectManager.nextId);
+		offsets = new HashtableOfInt(objectManager.getNextId());
 		for (int i = 0; i < points.length; i++) {
 			saveExtensionPoint(points[i]);
 		}
 		saveOrphans(objectManager);
 		saveTables(objectManager, timestamp);
 
-		saveNamespaces(objectManager.newContributions);
+		saveNamespaces(objectManager.getContributions());
 	}
 
-	private void saveNamespaces(KeyedHashSet newNamespaces) throws IOException {
+	private void saveNamespaces(KeyedHashSet[] contributions) throws IOException {
 		DataOutputStream outputNamespace = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(contributionsFile)));
-		KeyedElement[] elements = newNamespaces.elements();
-		outputNamespace.writeInt(elements.length);
-		for (int i = 0; i < elements.length; i++) {
-			Contribution elt = (Contribution) elements[i];
+		KeyedElement[] newElements = contributions[0].elements();
+		KeyedElement[] formerElements = contributions[1].elements();
+		outputNamespace.writeInt(newElements.length + formerElements.length);
+		for (int i = 0; i < newElements.length; i++) {
+			Contribution elt = (Contribution) newElements[i];
+			outputNamespace.writeLong(elt.getContributingBundle().getBundleId());
+			saveArray(elt.getRawChildren(), outputNamespace);
+		}
+		for (int i = 0; i < formerElements.length; i++) {
+			Contribution elt = (Contribution) formerElements[i];
 			outputNamespace.writeLong(elt.getContributingBundle().getBundleId());
 			saveArray(elt.getRawChildren(), outputNamespace);
 		}
@@ -114,9 +118,9 @@ public class TableWriter {
 	private void saveTables(RegistryObjectManager objectManager, long registryTimeStamp) throws IOException {
 		DataOutputStream outputTable = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(tableFile)));
 		writeCacheHeader(outputTable, registryTimeStamp);
-		outputTable.writeInt(objectManager.nextId);
+		outputTable.writeInt(objectManager.getNextId());
 		offsets.save(outputTable);
-		objectManager.extensionPoints.save(outputTable);
+		objectManager.getExtensionPoints().save(outputTable);
 		outputTable.close();
 	}
 
@@ -144,7 +148,7 @@ public class TableWriter {
 	private void saveExtensionPoint(ExtensionPointHandle xpt) throws IOException {
 		//save the file position
 		offsets.put(xpt.getId(), mainOutput.size());
-
+		System.out.println(xpt.getId());
 		//save the extensionPoint
 		mainOutput.writeInt(xpt.getId());
 		saveArray(xpt.getObject().getRawChildren(), mainOutput);
@@ -181,6 +185,7 @@ public class TableWriter {
 
 		currentOutput.writeInt(element.getId());
 		ConfigurationElement actualCe = (ConfigurationElement) element.getObject();
+		
 		currentOutput.writeLong(actualCe.getContributingBundle().getBundleId());
 		writeStringOrNull(actualCe.getName(), currentOutput);
 		currentOutput.writeInt(actualCe.parentId);
@@ -203,6 +208,7 @@ public class TableWriter {
 		}
 
 		for (int i = 0; i < exts.length; i++) {
+			System.out.println(">>");
 			IConfigurationElement[] ces = exts[i].getConfigurationElements();
 			outputStream.writeInt(ces.length); //this is not mandatory
 			for (int j = 0; j < ces.length; j++) {
@@ -234,7 +240,7 @@ public class TableWriter {
 	}
 
 	private void saveOrphans(RegistryObjectManager objectManager) throws IOException {
-		HashMap orphans = (HashMap) objectManager.orphanExtensions;
+		Map orphans = objectManager.getOrphanExtensions();
 		DataOutputStream outputOrphan = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(orphansFile)));
 		outputOrphan.writeInt(orphans.size());
 		Set elements = orphans.entrySet();

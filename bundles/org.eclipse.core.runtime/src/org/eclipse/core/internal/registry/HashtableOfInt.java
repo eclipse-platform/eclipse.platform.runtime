@@ -133,6 +133,7 @@ public final class HashtableOfInt {
 		if (tableSize / elementSize > GROWTH_FACTOR) {	//TODO Need to compute the correct amount
 			keyTable = new int[(int) (elementSize * GROWTH_FACTOR)];	//TODO Check the conditions here, it seems that we are getting in a bit too much
 			valueTable = new int[(int) (elementSize * GROWTH_FACTOR)];
+			elementSize = 0;
 			fastMode = false;
 		} else {
 			keyTable = new int[tableSize];

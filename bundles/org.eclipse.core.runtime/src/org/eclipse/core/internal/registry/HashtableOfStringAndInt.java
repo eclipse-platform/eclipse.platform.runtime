@@ -168,9 +168,10 @@ public final class HashtableOfStringAndInt implements Cloneable {
 		int tableSize = in.readInt();
 		threshold = in.readInt();
 		boolean fastMode = true;
-		if (tableSize / elementSize > GROWTH_FACTOR) {
+		if (tableSize / elementSize > GROWTH_FACTOR) {	//TODO Change the math here
 			keyTable = new String[(int) (elementSize * GROWTH_FACTOR)];
 			valueTable = new int[(int) (elementSize * GROWTH_FACTOR)];
+			elementSize = 0;
 			fastMode = false;
 		} else {
 			keyTable = new String[tableSize];
