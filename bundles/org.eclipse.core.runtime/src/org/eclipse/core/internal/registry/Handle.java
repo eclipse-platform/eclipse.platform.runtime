@@ -17,7 +17,7 @@ package org.eclipse.core.internal.registry;
  * @since 3.1. 
  */
 public abstract class Handle {
-	static RegistryObjectManager objectManager;
+	protected static RegistryObjectManager objectManager;
 
 	static RegistryObjectManager getObjectManager() {
 		if (objectManager == null)
