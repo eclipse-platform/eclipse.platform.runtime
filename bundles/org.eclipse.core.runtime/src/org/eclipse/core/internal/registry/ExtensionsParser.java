@@ -80,6 +80,7 @@ public class ExtensionsParser extends DefaultHandler {
 
 	private Contribution namespace;
 
+	//This keeps tracks of the value of the configuration element in case the value comes in several pieces (see characters()). See as well bug 75592. 
 	private String configurationElementValue;
 
 	/** 
