@@ -72,7 +72,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	private static final String FRAGMENT_XML = "fragment.xml";
 	private static final String FEATURE_XML = "feature.xml";
 	
-	private static final String[] BOOTSTRAP_PLUGINS = {"org.eclipse.core.boot", "org.eclipse.core.runtime"};
+	private static final String[] BOOTSTRAP_PLUGINS = {"org.eclipse.core.boot"};
 	private static final String CFG_BOOT_PLUGIN = "bootstrap";
 	private static final String CFG_SITE = "site";
 	private static final String CFG_URL = "url";
