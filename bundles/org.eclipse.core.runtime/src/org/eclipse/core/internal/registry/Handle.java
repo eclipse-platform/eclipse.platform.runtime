@@ -40,4 +40,11 @@ public abstract class Handle {
 	 * @throws InvalidHandleException when the handle is stale.
 	 */
 	abstract RegistryObject getObject();
+	
+	public boolean equals(Object object) {
+		if (object instanceof Handle) {
+			return objectId == ((Handle) object).objectId;
+		}
+		return false;
+	}
 }
