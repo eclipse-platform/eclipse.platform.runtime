@@ -297,7 +297,7 @@ public interface IPluginDescriptor {
 	 * necessary to perform a 'resolve' on this URL.
 	 * 
 	 * @since 2.0
-	 * @deprecated {@link org.osgi.framework.Bundle#getEntry() Bundle#getEntry()}
+	 * @deprecated {@link Platform#find(Bundle, IPath) Platform#find(Bundle, IPath)}
 	 */
 	public URL find(IPath path);
 	/**
@@ -345,6 +345,7 @@ public interface IPluginDescriptor {
 	 * necessary to perform a 'resolve' on this URL.
 	 * 
 	 * @since 2.0
+	 * @deprecated {@link Platform#find(Bundle, IPath, Map) Platform#find(Bundle, IPath, Map)}
 	 */
 	public URL find(IPath path, Map override);
 	/**

@@ -15,13 +15,12 @@ import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.*;
-import java.util.Map;
-import java.util.ResourceBundle;
 import org.eclipse.core.internal.runtime.FindSupport;
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.runtime.jobs.IJobManager;
 import org.osgi.framework.Bundle;
 
+// TODO clarify the javadoc below 
 /**
  * The central class of the Eclipse Platform Runtime. This class cannot
  * be instantiated or subclassed by clients; all functionality is provided 
@@ -47,6 +46,8 @@ public final class Platform {
 	 * of the Core Runtime (pseudo-) plug-in.
 	 */
 	public static final String PI_RUNTIME = "org.eclipse.core.runtime"; //$NON-NLS-1$
+	
+	// TODO was this API anywhere?  On Plugin?
 	public static final String PI_BOOT = "org.eclipse.core.boot"; //$NON-NLS-1$
 	/** 
 	 * The simple identifier constant (value "<code>applications</code>") of

@@ -14,11 +14,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.*;
-import java.util.Map;
-import java.util.ResourceBundle;
 import org.eclipse.core.runtime.jobs.IJobManager;
 import org.osgi.framework.Bundle;
 
+// TODO clarify the javadoc below.  Copy the signatures from Platform.
+// talk to jeem about the best way to do the triplication
 /**
  * The central class of the Eclipse Platform Runtime. This class cannot
  * be instantiated or subclassed by clients; all functionality is provided 
