@@ -40,7 +40,8 @@ public final class InternalBootLoader {
 	private static boolean starting = false;
 	private static String[] commandLine;
 	private static ClassLoader loader = null;
-	private static String baseLocation = null;
+	private static String baseLocation = null; // -data argument (workspace location)
+	private static String installLocation = null; // -install argument (product install location)
 	private static String applicationR10 = null; // R1.0 compatibility
 	private static URL installURL = null;
 	private static boolean debugRequested = false;
@@ -106,6 +107,7 @@ public final class InternalBootLoader {
 	// command line arguments
 	private static final String DEBUG = "-debug";
 	private static final String DATA = "-data";
+	private static final String INSTALL = "-install";
 	private static final String DEV = "-dev";
 	private static final String WS = "-ws";
 	private static final String OS = "-os";
@@ -180,7 +182,26 @@ public static PlatformConfiguration getCurrentPlatformConfiguration() {
 public static URL getInstallURL() {
 	if (installURL != null)
 		return installURL;
+		
+	// See if install location was explicitly specified
+	// Note: in the regular launch sequence, if the argument was not specified
+	//       on the launch, Main.java is actually defaulting this relative to
+	//       itself. The resulting behavior is consistent with the default
+	//       behavior in 1.0 (with all program files being co-located in the
+	//       eclipse/ install directory). However, the new behavior takes into 
+	//       account an update scenario where we may in fact be executing
+	//       InternalBootLoader that was loaded from some other location.
+	if (installLocation != null && !installLocation.trim().equals("")) {
+		try {
+			installURL = new URL(installLocation);
+			if (debugRequested) 
+				System.out.println("Install URL:\n    "+installURL.toExternalForm());
+			return installURL;
+		} catch(MalformedURLException e) {
+		}
+	}
 
+	// Install location was not specified, or we failed to create a URL.
 	// Get the location of this class and compute the install location.
 	// this involves striping off last element (jar or directory) 
 	URL url = InternalBootLoader.class.getProtectionDomain().getCodeSource().getLocation();
@@ -449,8 +470,15 @@ private static void loadOptions() {
 	}
 	options = new Properties();
 	URL optionsFile;
-	if (debugOptionsFilename == null)
-		debugOptionsFilename = getInstallURL().toExternalForm() + OPTIONS;
+	if (debugOptionsFilename == null) {
+		// default options location is user.dir (install location may be r/o so
+		// is not a good candidate for a trace options that need to be updatable by
+		// by the user)
+		String userDir = System.getProperty("user.dir").replace(File.separatorChar,'/');
+		if (!userDir.endsWith("/"))
+			userDir += "/";
+		debugOptionsFilename = "file:" + userDir + OPTIONS;
+	}
 	try {
 		optionsFile = new URL(debugOptionsFilename);
 	} catch (MalformedURLException e) {
@@ -458,7 +486,7 @@ private static void loadOptions() {
 		e.printStackTrace(System.out);
 		return;
 	}
-	System.out.println("Debug-Options: " + debugOptionsFilename);
+	System.out.println("Debug-Options:\n    " + debugOptionsFilename);
 	try {
 		InputStream input = optionsFile.openStream();
 		try {
@@ -529,6 +557,12 @@ private static String[] processCommandLine(String[] args) throws Exception {
 			devClassPath = arg;
 			found = true;
 			continue;
+		}
+
+		// look for the install location. 
+		if (args[i - 1].equalsIgnoreCase(INSTALL)) {
+			found = true;
+			installLocation = arg;
 		}
 
 		// look for the platform location.  Only set it if not already set. This 
