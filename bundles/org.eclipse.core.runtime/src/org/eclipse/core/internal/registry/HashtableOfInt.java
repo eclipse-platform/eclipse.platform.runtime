@@ -20,8 +20,8 @@ public final class HashtableOfInt {
 	private int[] keyTable;
 	private int[] valueTable;
 	private static final float GROWTH_FACTOR = 1.33f;
-	
-	private  int elementSize; // number of elements in the table
+
+	private int elementSize; // number of elements in the table
 	private int threshold;
 
 	public HashtableOfInt() {
@@ -71,7 +71,7 @@ public final class HashtableOfInt {
 		}
 		return Integer.MIN_VALUE;
 	}
-	
+
 	public int put(int key, int value) {
 		int index = key % valueTable.length;
 		int currentKey;
@@ -88,7 +88,7 @@ public final class HashtableOfInt {
 			rehash();
 		return value;
 	}
-	
+
 	private void rehash() {
 		HashtableOfInt newHashtable = new HashtableOfInt((int) (elementSize * GROWTH_FACTOR)); // double the number of expected elements
 		int currentKey;
@@ -130,10 +130,11 @@ public final class HashtableOfInt {
 		int tableSize = in.readInt();
 		threshold = in.readInt();
 		boolean fastMode = true;
-		if (tableSize / elementSize > GROWTH_FACTOR) {	//TODO Need to compute the correct amount
-			keyTable = new int[(int) (elementSize * GROWTH_FACTOR)];	//TODO Check the conditions here, it seems that we are getting in a bit too much
+		if (((double) tableSize / elementSize) < GROWTH_FACTOR) { //TODO Need to compute the correct amount
+			keyTable = new int[(int) (elementSize * GROWTH_FACTOR)]; //TODO Check the conditions here, it seems that we are getting in a bit too much
 			valueTable = new int[(int) (elementSize * GROWTH_FACTOR)];
 			elementSize = 0;
+			System.out.println("slow rebuild of hash of ints");
 			fastMode = false;
 		} else {
 			keyTable = new int[tableSize];
