@@ -13,6 +13,7 @@ package org.eclipse.core.internal.registry;
 import java.io.*;
 import java.util.*;
 import org.eclipse.core.internal.runtime.InternalPlatform;
+import org.eclipse.core.internal.runtime.Policy;
 import org.eclipse.core.runtime.*;
 
 public class TableWriter {
@@ -23,7 +24,7 @@ public class TableWriter {
 	static File tableFile;
 	static File contributionsFile;
 	static File orphansFile;
-	
+
 	static void setMainDataFile(File main) {
 		mainDataFile = main;
 	}
@@ -43,7 +44,7 @@ public class TableWriter {
 	static void setOrphansFile(File orphan) {
 		orphansFile = orphan;
 	}
-	
+
 	DataOutputStream mainOutput;
 	DataOutputStream extraOutput;
 
@@ -55,32 +56,39 @@ public class TableWriter {
 
 	public boolean saveCache(RegistryObjectManager objectManager, long timestamp) {
 		try {
-			openFiles();
+			if (!openFiles())
+				return false;		
 			try {
 				saveExtensionRegistry(objectManager, timestamp);
-				closeFiles();
-			} catch (IOException e1) {
-				InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error writing the registry cache", e1));
+			} catch (IOException io) {
+				InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, Policy.bind("meta.registryCacheWriteProblems"), io)); //$NON-NLS-1$
 				return false;
 			}
+		} finally {
+			closeFiles();
+		}
+		return true;
+	}
+
+	private boolean openFiles() {
+		try {
+			mainOutput = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(mainDataFile)));
+			extraOutput = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(extraDataFile)));
 		} catch (FileNotFoundException e) {
-			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error writing the registry cache", e));
+			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, Policy.bind("meta.unableToCreateCache"), e)); //$NON-NLS-1$
 			return false;
 		}
 		return true;
 	}
 
-	private void openFiles() throws FileNotFoundException {
-		mainOutput = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(mainDataFile)));
-		extraOutput = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(extraDataFile)));
-	}
-
-	private void closeFiles() { //TODO Review exception handling
+	private void closeFiles() {
 		try {
-			mainOutput.close();
-			extraOutput.close();
+			if (mainOutput != null)
+				mainOutput.close();
+			if (extraOutput != null)
+				extraOutput.close();
 		} catch (IOException e) {
-			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error closing the registry cache", e));
+			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, Policy.bind("meta.registryCacheWriteProblems"), e)); //$NON-NLS-1$
 			e.printStackTrace();
 		}
 	}
@@ -93,8 +101,8 @@ public class TableWriter {
 		}
 		saveOrphans(objectManager);
 		saveNamespaces(objectManager.getContributions());
-		
-		saveTables(objectManager, timestamp);	//Write the table last so if that is something went wrong we can know
+
+		saveTables(objectManager, timestamp); //Write the table last so if that is something went wrong we can know
 	}
 
 	private void saveNamespaces(KeyedHashSet[] contributions) throws IOException {
@@ -128,6 +136,10 @@ public class TableWriter {
 		output.writeInt(TableReader.CACHE_VERSION);
 		output.writeLong(InternalPlatform.getDefault().getStateTimeStamp());
 		output.writeLong(registryTimeStamp);
+		output.writeLong(mainDataFile.length());
+		output.writeLong(extraDataFile.length());
+		output.writeLong(contributionsFile.length());
+		output.writeLong(orphansFile.length());
 		InternalPlatform info = InternalPlatform.getDefault();
 		output.writeUTF(info.getOS());
 		output.writeUTF(info.getWS());
@@ -184,7 +196,7 @@ public class TableWriter {
 
 		currentOutput.writeInt(element.getId());
 		ConfigurationElement actualCe = (ConfigurationElement) element.getObject();
-		
+
 		currentOutput.writeLong(actualCe.getContributingBundle().getBundleId());
 		writeStringOrNull(actualCe.getName(), currentOutput);
 		currentOutput.writeInt(actualCe.parentId);
