@@ -11,9 +11,13 @@
 package org.eclipse.core.runtime;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.*;
 import java.util.Map;
+import java.util.ResourceBundle;
+import org.eclipse.core.internal.runtime.FindSupport;
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.runtime.jobs.IJobManager;
 import org.osgi.framework.Bundle;
@@ -461,5 +465,119 @@ public final class Platform {
 	 */
 	public static IExtensionRegistry getExtensionRegistry() {
 		return InternalPlatform.getDefault().getRegistry();
+	}
+	public static URL find(Bundle b, IPath path) {
+		return FindSupport.find(b, path, null);
+	}
+	
+	public static URL find(Bundle b, IPath path, Map override) {
+		return FindSupport.find(b, path, override);
+	}
+	
+	public static InputStream openStream(Bundle b, IPath file) throws IOException {
+		return FindSupport.openStream(b, file, false);
+	}
+	
+	/**
+	 * Returns an input stream for the specified file. The file path
+	 * must be specified relative to this plug-in's installation location.
+	 * Optionally, the platform searches for the correct localized version
+	 * of the specified file using the users current locale, and Java
+	 * naming convention for localized resource files (locale suffix appended 
+	 * to the specified file extension).
+	 * <p>
+	 * The caller must close the returned stream when done.
+	 * </p>
+	 *
+	 * @param file path relative to plug-in installation location
+	 * @param localized <code>true</code> for the localized version
+	 *   of the file, and <code>false</code> for the file exactly
+	 *   as specified
+	 * @return an input stream
+	 */	
+	public static InputStream openStream(Bundle b, IPath file, boolean localized) throws IOException {
+		return InternalPlatform.getDefault().openStream(b, file, localized);		
+	}
+	
+	public static IPath getStateLocation(Bundle bundle) {
+		return InternalPlatform.getDefault().getStateLocation(bundle);
+	}
+	
+	public static ILog getLog(Bundle bundle) {
+		return InternalPlatform.getDefault().getLog(bundle);
+	}
+	/**
+	 * Returns this plug-in's resource bundle for the current locale. 
+	 * <p>
+	 * The bundle is stored as the <code>plugin.properties</code> file 
+	 * in the plug-in install directory, and contains any translatable
+	 * strings used in the plug-in manifest file (<code>plugin.xml</code>)
+	 * along with other resource strings used by the plug-in implementation.
+	 * </p>
+	 *
+	 * @return the resource bundle
+	 * @exception MissingResourceException if the resource bundle was not found
+	 */
+	public static ResourceBundle getResourceBundle(Bundle bundle) throws MissingResourceException {
+		return InternalPlatform.getDefault().getResourceBundle(bundle);
+	}
+	/**
+	 * Returns a resource string corresponding to the given argument value.
+	 * If the argument value specifies a resource key, the string
+	 * is looked up in the default resource bundle. If the argument does not
+	 * specify a valid key, the argument itself is returned as the
+	 * resource string. The key lookup is performed in the
+	 * plugin.properties resource bundle. If a resource string 
+	 * corresponding to the key is not found in the resource bundle
+	 * the key value, or any default text following the key in the
+	 * argument value is returned as the resource string.
+	 * A key is identified as a string begining with the "%" character.
+	 * Note, that the "%" character is stripped off prior to lookup
+	 * in the resource bundle.
+	 * <p>
+	 * Equivalent to <code>getResourceString(value, getResourceBundle())</code>
+	 * </p>
+	 *
+	 * @param value the value
+	 * @return the resource string
+	 * @see #getResourceBundle
+	 */
+	public static  String getResourceString(Bundle bundle, String value){
+		return InternalPlatform.getDefault().getResourceString(bundle, value);
+	}
+	/**
+	 * Returns a resource string corresponding to the given argument 
+	 * value and bundle.
+	 * If the argument value specifies a resource key, the string
+	 * is looked up in the given resource bundle. If the argument does not
+	 * specify a valid key, the argument itself is returned as the
+	 * resource string. The key lookup is performed against the
+	 * specified resource bundle. If a resource string 
+	 * corresponding to the key is not found in the resource bundle
+	 * the key value, or any default text following the key in the
+	 * argument value is returned as the resource string.
+	 * A key is identified as a string begining with the "%" character.
+	 * Note that the "%" character is stripped off prior to lookup
+	 * in the resource bundle.
+	 * <p>
+	 * For example, assume resource bundle plugin.properties contains
+	 * name = Project Name
+	 * <pre>
+	 *     getResourceString("Hello World") returns "Hello World"</li>
+	 *     getResourceString("%name") returns "Project Name"</li>
+	 *     getResourceString("%name Hello World") returns "Project Name"</li>
+	 *     getResourceString("%abcd Hello World") returns "Hello World"</li>
+	 *     getResourceString("%abcd") returns "%abcd"</li>
+	 *     getResourceString("%%name") returns "%name"</li>
+	 * </pre>
+	 * </p>
+	 *
+	 * @param value the value
+	 * @param bundle the resource bundle
+	 * @return the resource string
+	 * @see #getResourceBundle
+	 */
+	public static String getResourceString(Bundle bundle, String value, ResourceBundle resourceBundle) {
+		return InternalPlatform.getDefault().getResourceString(bundle, value, resourceBundle);
 	}
 }

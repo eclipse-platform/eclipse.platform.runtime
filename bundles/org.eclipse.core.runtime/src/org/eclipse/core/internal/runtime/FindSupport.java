@@ -1,14 +1,4 @@
-/*******************************************************************************
- * Copyright (c) 2003 IBM Corporation and others.
- * All rights reserved. This program and the accompanying materials 
- * are made available under the terms of the Common Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/cpl-v10.html
- * 
- * Contributors:
- *     IBM Corporation - initial API and implementation
- *******************************************************************************/
-package org.eclipse.core.runtime;
+package org.eclipse.core.internal.runtime;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,11 +7,12 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Map;
 import org.eclipse.core.internal.boot.PlatformURLHandler;
-import org.eclipse.core.internal.runtime.InternalPlatform;
+import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.Path;
 import org.osgi.framework.Bundle;
 
-public class PlatformHelper {
-	
+public class FindSupport {
+
 	private static String[] WS_JAR_VARIANTS = buildWSVariants();
 	private static String[] OS_JAR_VARIANTS = buildOSVariants();
 	private static String[] NL_JAR_VARIANTS = buildNLVariants(InternalPlatform.getDefault().getEnvironmentInfoService().getNL());
@@ -37,7 +28,6 @@ public class PlatformHelper {
 		return new String[] { "" }; //$NON-NLS-1$
 	}
 	private static String[] buildOSVariants() {
-		
 		ArrayList result = new ArrayList();
 		result.add("os/" + InternalPlatform.getDefault().getEnvironmentInfoService().getOS() + "/" + InternalPlatform.getDefault().getEnvironmentInfoService().getOSArch()); //$NON-NLS-1$ //$NON-NLS-2$
 		result.add("os/" + InternalPlatform.getDefault().getEnvironmentInfoService().getOS()); //$NON-NLS-1$
@@ -90,19 +80,13 @@ public class PlatformHelper {
 		}
 		return null;
 	}
-	
-	public static final URL find(Bundle b, IPath path) {
-		return find(b, path, null);
+	public static URL find(Bundle bundle, IPath path) {
+		return find(bundle, path, null);
 	}
-	
 	/**
-	 * Returns a URL for the given path.  Returns <code>null</code> if the URL
-	 * could not be computed or created.
-	 * 
-	 * @param file path relative to plug-in installation location 
-	 * @return a URL for the given path or <code>null</code>
+	 * See doc on @link Platform#find(Bundle, IPath) Platform#find(Bundle, IPath) 
 	 */
-	public static final URL find(Bundle b, IPath path, Map override) {
+	public static URL find(Bundle b, IPath path, Map override) {
 		if (path == null)
 			return null;
 
@@ -280,18 +264,7 @@ public class PlatformHelper {
 		}
 		return fileURL;
 	}
-	
-	/**
-	 * Returns an input stream for the specified file. The file path
-	 * must be specified relative this the plug-in's installation location.
-	 *
-	 * @param file path relative to plug-in installation location
-	 * @return an input stream
-	 * @see #openStream(IPath,boolean)
-	 */
-	public final InputStream openStream(Bundle b, IPath file) throws IOException {
-		return openStream(b, file, false);
-	}
+
 	/**
 	 * Returns an input stream for the specified file. The file path
 	 * must be specified relative to this plug-in's installation location.
@@ -309,11 +282,12 @@ public class PlatformHelper {
 	 *   as specified
 	 * @return an input stream
 	 */
-	public final InputStream openStream(Bundle b, IPath file, boolean localized) throws IOException {
+	public static final InputStream openStream(Bundle b, IPath file, boolean localized) throws IOException {
 		URL url = b.getEntry(file.toString());
 		if (url != null)
 			return url.openStream();
 		return null;
 		//TODO Need to put support to do the localization. 
 	}
+	
 }

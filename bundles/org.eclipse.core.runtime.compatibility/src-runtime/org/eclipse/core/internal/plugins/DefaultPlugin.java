@@ -17,6 +17,8 @@ import org.eclipse.core.runtime.IPluginDescriptor;
 import org.eclipse.core.runtime.Plugin;
 
 public class DefaultPlugin extends Plugin {
+	public DefaultPlugin() {
+	}
 	public DefaultPlugin(IPluginDescriptor descriptor) {
 		super(descriptor);
 	}

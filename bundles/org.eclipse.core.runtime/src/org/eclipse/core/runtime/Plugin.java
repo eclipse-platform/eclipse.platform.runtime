@@ -16,8 +16,11 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.*;
 import org.eclipse.core.internal.runtime.*;
+import org.eclipse.osgi.service.environment.EnvironmentInfo;
+import org.osgi.framework.*;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleException;
+import org.osgi.util.tracker.ServiceTracker;
 
 /**
  * The abstract superclass of all plug-in runtime class
@@ -155,8 +158,9 @@ import org.osgi.framework.BundleException;
  * @deprecated In eclipse 3.0, the concept of plugin has been renamed to Bundle and slightly modified and enhanced (see the  porting guide further information).
  * The responsibilities of the plugin class are now being spread across {@link org.osgi.framework.Bundle Bundle}, {@link org.osgi.framework.BundleActivator BundleActivator}
  */
-public abstract class Plugin {
-	private Bundle bundle;
+public abstract class Plugin implements BundleActivator {
+	protected Bundle bundle;
+	private BundleContext context;
 	/**
 	 * The debug flag for this plug-in.  The flag is false by default.
 	 * It can be set to true either by the plug-in itself or in the platform 
@@ -207,7 +211,10 @@ public abstract class Plugin {
 	 *
 	 * @param descriptor the plug-in descriptor
 	 * @see #getDescriptor
+	 * @deprecated 
 	 */
+	public Plugin() {
+	}
 	public Plugin(IPluginDescriptor descriptor) {
 		Assert.isNotNull(descriptor);
 		Assert.isTrue(!descriptor.isPluginActivated(), Policy.bind("plugin.deactivatedLoad", this.getClass().getName(), descriptor.getUniqueIdentifier() + " is not activated")); //$NON-NLS-1$ //$NON-NLS-2$
@@ -232,10 +239,9 @@ public abstract class Plugin {
 	 * 
 	 * @param file path relative to plug-in installation location 
 	 * @return a URL for the given path or <code>null</code>
-	 * @deprecated Use @link PlatformHelper#find(Bundle, IPath) PlatformHelper#find(Bundle, IPath)
 	 */
 	public final URL find(IPath path) {
-		return PlatformHelper.find(bundle, path);
+		return FindSupport.find(bundle, path, null);
 	}
 	/**
 	 * Returns a URL for the given path.  Returns <code>null</code> if the URL
@@ -249,10 +255,9 @@ public abstract class Plugin {
 	 * or does not contain the required substitution argument, the default
 	 * is used.
 	 * @return a URL for the given path or <code>null</code>
-	 * @deprecated Use @link PlatformHelper#find(Bundle, IPath, Map) PlatformHelper#find(Bundle, IPath, Map) 
 	 */
 	public final URL find(IPath path, Map override) {
-		return PlatformHelper.find(bundle, path, override);
+		return FindSupport.find(bundle, path, override);
 	}
 	/**
 	 * Returns the plug-in descriptor for this plug-in runtime object.
@@ -267,10 +272,9 @@ public abstract class Plugin {
 	 * Returns the log for this plug-in.  If no such log exists, one is created.
 	 *
 	 * @return the log for this plug-in
-	 * @deprecated See @link BundleHelper#getLog() BundleHelper#getLog()
 	 */
 	public final ILog getLog() {
-		return InternalPlatform.getDefault().getLog(InternalPlatform.getDefault().getBundle(descriptor.getUniqueIdentifier()));
+		return InternalPlatform.getDefault().getLog(bundle);
 	}
 	/**
 	 * Returns the location in the local file system of the 
@@ -287,10 +291,10 @@ public abstract class Plugin {
 	 * </p>
 	 *
 	 * @return a local file system path
-	 * @deprecated See @link BundleHelper#getStateLocation() BundleHelper#getStateLocation()
+	 * @deprecated See @link Platform#getStateLocation() BundleHelper#getStateLocation()
 	 */
 	public final IPath getStateLocation() {
-		return InternalPlatform.getDefault().getStateLocation(this.getDescriptor().getUniqueIdentifier(), true);
+		return InternalPlatform.getDefault().getStateLocation(bundle,true);
 	}
 
 	/**
@@ -320,12 +324,12 @@ public abstract class Plugin {
 	 * @see Preferences#setValue
 	 * @see Preferences#setToDefault
 	 * @since 2.0
-	 * @deprecated Use @link BundleHelper#getPluginPreferences() BundleHelper#getPluginPreferences() 
+	 * @deprecated TODO 
 	 */
 	public final Preferences getPluginPreferences() {
 		if (preferences != null) {
 			if (InternalPlatform.DEBUG_PREFERENCES) {
-				System.out.println("Plugin preferences already loaded for " + getDescriptor().getUniqueIdentifier()); //$NON-NLS-1$
+				System.out.println("Plugin preferences already loaded for " + bundle.getGlobalName()); //$NON-NLS-1$
 			}
 			// N.B. preferences instance field set means already created
 			// and initialized (or in process of being initialized)
@@ -333,7 +337,7 @@ public abstract class Plugin {
 		}
 
 		if (InternalPlatform.DEBUG_PREFERENCES) {
-			System.out.println("Loading preferences for plugin " + getDescriptor().getUniqueIdentifier()); //$NON-NLS-1$
+			System.out.println("Loading preferences for plugin " + bundle.getGlobalName()); //$NON-NLS-1$
 		}
 		// lazily create preference store
 		// important: set preferences instance field to prevent re-entry
@@ -348,7 +352,7 @@ public abstract class Plugin {
 		// 3. override with defaults from primary feature or command line
 		applyExternalPluginDefaultOverrides();
 		if (InternalPlatform.DEBUG_PREFERENCES) {
-			System.out.println("Completed loading preferences for plugin " + getDescriptor().getUniqueIdentifier()); //$NON-NLS-1$
+			System.out.println("Completed loading preferences for plugin " + bundle.getGlobalName()); //$NON-NLS-1$
 		}
 		return preferences;
 	}
@@ -365,7 +369,7 @@ public abstract class Plugin {
 	private void loadPluginPreferences() {
 		// the preferences file is located in the plug-in's state area at a well-known name
 		// don't need to create the directory if there are no preferences to load
-		File prefFile = InternalPlatform.getDefault().getMetaArea().getPreferenceLocation(getDescriptor().getUniqueIdentifier(), false).toFile();
+		File prefFile = InternalPlatform.getDefault().getMetaArea().getPreferenceLocation(bundle, false).toFile();
 		if (!prefFile.exists()) {
 			// no preference file - that's fine
 			if (InternalPlatform.DEBUG_PREFERENCES) {
@@ -426,7 +430,7 @@ public abstract class Plugin {
 	 * @see Preferences#store
 	 * @see Preferences#needsSaving
 	 * @since 2.0
-	 * @deprecated @link BundleHelper#savePluginPreferences() BundleHelper#savePluginPreferences()
+	 * @deprecated TODO
 	 */
 	public final void savePluginPreferences() {
 		if (preferences == null || !preferences.needsSaving()) {
@@ -437,7 +441,7 @@ public abstract class Plugin {
 		// preferences need to be saved
 		// the preferences file is located in the plug-in's state area
 		// at a well-known name (pref_store.ini)
-		File prefFile = InternalPlatform.getDefault().getMetaArea().getPreferenceLocation(descriptor.getUniqueIdentifier(), true).toFile();
+		File prefFile = InternalPlatform.getDefault().getMetaArea().getPreferenceLocation(bundle, true).toFile();
 		if (preferences.propertyNames().length == 0) {
 			// there are no preference settings
 			// rather than write an empty file, just delete any existing file
@@ -510,9 +514,9 @@ public abstract class Plugin {
 	 */
 	private void applyExternalPluginDefaultOverrides() {
 		// 1. InternalPlatform is central authority for platform configuration questions
-		InternalPlatform.getDefault().applyPrimaryFeaturePluginDefaultOverrides(getDescriptor().getUniqueIdentifier(), preferences);
+		InternalPlatform.getDefault().applyPrimaryFeaturePluginDefaultOverrides(bundle.getGlobalName(), preferences);
 		// 2. command line overrides take precedence over feature-specified overrides
-		InternalPlatform.getDefault().applyCommandLinePluginDefaultOverrides(getDescriptor().getUniqueIdentifier(), preferences);
+		InternalPlatform.getDefault().applyCommandLinePluginDefaultOverrides(bundle.getGlobalName(), preferences);
 	}
 
 	/**
@@ -524,15 +528,15 @@ public abstract class Plugin {
 	 */
 	private void applyInternalPluginDefaultOverrides() {
 
-		IPluginDescriptor pluginDescriptor = getDescriptor();
+		
 		// use URLs so we can find the file in fragments too
-		URL baseURL = pluginDescriptor.find(new Path(PREFERENCES_DEFAULT_OVERRIDE_FILE_NAME));
+		URL baseURL = FindSupport.find(bundle, new Path(PREFERENCES_DEFAULT_OVERRIDE_FILE_NAME));
 
 		if (baseURL == null) {
 			if (InternalPlatform.DEBUG_PREFERENCES) {
 				System.out.println("Plugin preference file " + PREFERENCES_DEFAULT_OVERRIDE_FILE_NAME + " not found."); //$NON-NLS-1$ //$NON-NLS-2$
 			}
-			baseURL = pluginDescriptor.find(new Path(PREFERENCES_DEFAULT_OVERRIDE_FILE_NAME_BACKUP));
+			baseURL = FindSupport.find(bundle, new Path(PREFERENCES_DEFAULT_OVERRIDE_FILE_NAME_BACKUP));
 			if (baseURL == null)
 				// No backup file has ben found, but we do not log 
 				return;
@@ -573,7 +577,7 @@ public abstract class Plugin {
 		// exists).
 		Properties props = null;
 		if (!overrides.isEmpty()) {
-			props = InternalPlatform.getDefault().getPreferenceTranslator(pluginDescriptor.getUniqueIdentifier(), PREFERENCES_DEFAULT_OVERRIDE_BASE_NAME);
+			props = InternalPlatform.getDefault().getPreferenceTranslator(bundle.getGlobalName(), PREFERENCES_DEFAULT_OVERRIDE_BASE_NAME);
 		}
 
 		for (Iterator it = overrides.entrySet().iterator(); it.hasNext();) {
@@ -615,10 +619,9 @@ public abstract class Plugin {
 	 * @param file path relative to plug-in installation location
 	 * @return an input stream
 	 * @see #openStream(IPath,boolean)
-	 * @deprecated @link PlatformHelper#openStream(Bundle, IPath) PlatformHelper#openStream(Bundle, IPath)
 	 */
 	public final InputStream openStream(IPath file) throws IOException {
-		return openStream(file, false);
+		return FindSupport.openStream(bundle, file, false);
 	}
 	/**
 	 * Returns an input stream for the specified file. The file path
@@ -636,11 +639,9 @@ public abstract class Plugin {
 	 *   of the file, and <code>false</code> for the file exactly
 	 *   as specified
 	 * @return an input stream
-	 * @deprecated @link PlatformHelper#openStream(Bundle, IPath, boolean) PlatformHelper#openStream(Bundle, IPath, boolean)
 	 */
 	public final InputStream openStream(IPath file, boolean localized) throws IOException {
-		URL target = new URL(getDescriptor().getInstallURL() + file.toString());
-		return target.openStream();
+		return FindSupport.openStream(bundle, file, localized);
 	}
 	/**
 	 * Sets whether this plug-in is in debug mode.
@@ -678,6 +679,7 @@ public abstract class Plugin {
 	 *
 	 * @exception CoreException if this method fails to shut down
 	 *   this plug-in
+	 * @deprecated
 	 */
 	public void shutdown() throws CoreException {
 		Method m;
@@ -737,6 +739,7 @@ public abstract class Plugin {
 	 * <b>Clients must never explicitly call this method.</b>
 	 *
 	 * @exception CoreException if this plug-in did not start up properly
+	 * @deprecated
 	 */
 	public void startup() throws CoreException {
 	}
@@ -746,5 +749,31 @@ public abstract class Plugin {
 	 */
 	public String toString() {
 		return descriptor.toString();
+	}
+	
+	public void start(BundleContext context) throws BundleException{
+		this.context = context;
+		bundle = context.getBundle();
+	}
+	
+	public void stop(BundleContext context) throws BundleException {
+		context = null;
+		bundle = null;
+	}
+	public BundleContext getBundleContext() {
+		return context;
+	}
+	public EnvironmentInfo getEnvironmentService() {
+		ServiceTracker tracker = null;
+		try {
+			tracker = new ServiceTracker(getBundleContext(), EnvironmentInfo.class.getName(), null);
+			tracker.open();
+			return (EnvironmentInfo) tracker.getService();
+		} finally {
+			tracker.close();
+		}
+	}
+	public Bundle getBundle() {
+		return bundle;
 	}
 }

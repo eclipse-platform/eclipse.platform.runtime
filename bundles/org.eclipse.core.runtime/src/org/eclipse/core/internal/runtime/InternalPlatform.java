@@ -387,13 +387,6 @@ public final class InternalPlatform implements IPlatform {
 	public IExtensionRegistry getRegistry() {
 		return registry;
 	}
-	public IPath getStateLocation(String bundleId, boolean create) {
-		assertInitialized();
-		IPath result = metaArea.getStateLocation(bundleId);
-		if (create)
-			result.toFile().mkdirs();
-		return result;
-	}
 	/**
 	 * Check whether the workspace metadata version matches the expected version. 
 	 * If not, prompt the user for whether to proceed, or exit with no changes.
@@ -1186,14 +1179,56 @@ public final class InternalPlatform implements IPlatform {
 		}
 		return (URL[]) result.toArray(new URL[result.size()]);
 	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.core.runtime.IPlatform#getConfigurationMetadataLocation()
-	 */
 	public IPath getConfigurationMetadataLocation() {
 		if (configMetadataLocation == null)
 			configMetadataLocation = new Path(System.getProperty("osgi.configuration.area"));
 		return configMetadataLocation;
 	}
 
+	public IPath getStateLocation(Bundle bundle, boolean create) {
+		assertInitialized();
+		IPath result = metaArea.getStateLocation(bundle);
+		if (create)
+			result.toFile().mkdirs();
+		return result;
+	}
+	public URL find(Bundle b, IPath path) {
+		return FindSupport.find(b, path);
+	}
+	public URL find(Bundle bundle, IPath path, Map override) {
+		return FindSupport.find(bundle, path, override);
+	}
+	public InputStream openStream(Bundle bundle, IPath file) throws IOException {
+		return FindSupport.openStream(bundle, file, false);
+	}
+	public InputStream openStream(Bundle bundle, IPath file, boolean localized) throws IOException {
+		return FindSupport.openStream(bundle, file, localized);
+	}
+	public IPath getStateLocation(Bundle bundle) {
+		return getStateLocation(bundle, true);
+	}
+
+	/* (non-Javadoc)
+	 * @see org.eclipse.core.runtime.IPlatform#getResourceBundle(org.osgi.framework.Bundle)
+	 */
+	public ResourceBundle getResourceBundle(Bundle bundle) throws MissingResourceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see org.eclipse.core.runtime.IPlatform#getResourceString(org.osgi.framework.Bundle, java.lang.String)
+	 */
+	public String getResourceString(Bundle bundle, String value) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see org.eclipse.core.runtime.IPlatform#getResourceString(org.osgi.framework.Bundle, java.lang.String, java.util.ResourceBundle)
+	 */
+	public String getResourceString(Bundle bundle, String value, ResourceBundle resourceBundle) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }
