@@ -528,7 +528,23 @@ private void linkFragments() {
 		if (seen.contains(fragment.getId()))
 			continue;
 		seen.add(fragment.getId());
-		PluginDescriptorModel plugin = reg.getPlugin(fragment.getPluginId(), fragment.getPluginVersion());
+		// Patch for doing a 'compatible' match for plugin id.
+		PluginDescriptorModel plugin = null;
+		IndexEntry ix = (IndexEntry) idmap.get(fragment.getPluginId());
+		if (ix != null) {
+			for (Iterator list = ix.versions().iterator(); list.hasNext();) {
+				PluginDescriptorModel pd = (PluginDescriptorModel) list.next();
+				if (pd.getEnabled()) {
+					// return the highest version that is compatible
+					if (getVersionIdentifier(pd).isCompatibleWith(new PluginVersionIdentifier(fragment.getPluginVersion()))) {
+						plugin = pd;
+						break;
+					}
+				}
+			}
+		}
+
+		// End of patch for doing a 'compatible' match for plugin id
 		if (plugin == null)
 			// XXX log something here?
 			continue;
@@ -838,7 +854,8 @@ private void resolvePluginFragments(PluginDescriptorModel plugin) {
 				PluginFragmentModel fragment = fragments[i];
 				PluginVersionIdentifier fragmentVersion = new PluginVersionIdentifier(fragment.getVersion());
 				PluginVersionIdentifier pluginVersion = new PluginVersionIdentifier(fragment.getPluginVersion());
-				if (pluginVersion.getMajorComponent() == targetVersion.getMajorComponent() && pluginVersion.getMinorComponent() == targetVersion.getMinorComponent())
+				if (targetVersion.isCompatibleWith(pluginVersion))
+				// if (pluginVersion.getMajorComponent() == targetVersion.getMajorComponent() && pluginVersion.getMinorComponent() == targetVersion.getMinorComponent())
 					if (latestFragment == null || fragmentVersion.isGreaterThan(latestVersion)) {
 						latestFragment = fragment;
 						latestVersion = fragmentVersion;
