@@ -6,7 +6,6 @@ package org.eclipse.core.internal.plugins;
  */
 
 import org.eclipse.core.boot.BootLoader;
-import org.eclipse.core.internal.boot.LaunchInfo;
 import org.eclipse.core.internal.runtime.Policy;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.MultiStatus;
@@ -277,7 +276,7 @@ public void writeHeaderInformation(DataOutputStream out) {
 	try {
 		out.writeInt(RegistryCacheReader.REGISTRY_CACHE_VERSION);
 		// install stamp
-		out.writeUTF(LaunchInfo.getCurrent().getIdentifier());
+		out.writeUTF(Long.toString(BootLoader.getCurrentPlatformConfiguration().getPluginsChangeStamp()));
 		// OS stamp
 		out.writeUTF(BootLoader.getOS());
 		// windows system stamp

@@ -37,6 +37,7 @@ public final class InternalBootLoader {
 	private static String baseLocation = null;
 	private static URL plugins = null;
 	private static String application = null;
+	private static String feature = null;
 	private static String configuration = null;
 	private static URL installURL = null;
 	private static boolean debugRequested = false;
@@ -166,14 +167,10 @@ public static boolean containsSavedPlatform(String location) {
 }
 private static URL[] defaultPluginPath() {
 	// If nothing was specified by the user or the user's value could not be used
-	// use the data from the LaunchInfo.
+	// use the data from the PlatformConfiguration.
 	if (true) {
-		LaunchInfo current = LaunchInfo.getCurrent();
-		URL[] plugins = current.getPluginPath();
-		URL[] fragments = current.getFragmentPath();
-		URL[] result = new URL[plugins.length + fragments.length];
-		System.arraycopy(plugins, 0, result, 0, plugins.length);
-		System.arraycopy(fragments, 0, result, plugins.length, fragments.length);
+		PlatformConfiguration current = getCurrentPlatformConfiguration();
+		URL[] result = current.getPluginPath();
 		return result;
 	}
 	
@@ -299,40 +296,12 @@ public static PlatformConfiguration getPlatformConfiguration(URL url) throws IOE
 	return new PlatformConfiguration(url);
 }
 
-private static String findPlugin(LaunchInfo.VersionedIdentifier[] list, String name, String version) {
-	LaunchInfo.VersionedIdentifier result = null;
-	for (int i = 0; i < list.length; i++) {
-		if (list[i].getIdentifier().equals(name)) {
-			if (version != null) {
-				// we are looking for a particular version, compare.  If the current element 
-				// has no version, save it for later in case we don't fine what we are looking for.
-				if (list[i].getVersion().equals(version))
-					return list[i].toString();
-				if (result == null && list[i].getVersion().length() == 0)
-					result = list[i];
-			} else {
-				// remember the element with the latest version number.
-				if (result == null)
-					result = list[i];
-				else 
-					if (result.getVersion().compareTo(list[i].getVersion()) == -1)
-						result = list[i];
-			}
-		}
-	}
-	return result == null ? null : result.toString();
-}	
-
 private static Object[] getPlatformClassLoaderPath() {
 
-	LaunchInfo launch = LaunchInfo.getCurrent();
-	String plugin = findPlugin(launch.getPlugins(), RUNTIMENAME, null);
-		
-	String execBase = null;
-	if (plugin == null)
+	PlatformConfiguration config = getCurrentPlatformConfiguration();
+	String execBase = config.getPluginPath(RUNTIMENAME).toExternalForm();
+	if (execBase == null)
 		execBase = getInstallURL() + RUNTIMEDIR;
-	else
-		execBase = launch.getBaseURL() + PLUGINSDIR + plugin + "/";
 
 	String devBase = null;
 	Properties jarDefinitions = null;
@@ -572,7 +541,7 @@ private static String[] initialize(URL pluginPathLocation, String location, Stri
 	loadOptions();
 
 	// load platform configuration
-	PlatformConfiguration.startup(getInstallURL()/*r1.0 arg*/,configuration/*r2.0 arg*/);
+	PlatformConfiguration.startup(configuration);
 
 	// initialize eclipse URL handling
 	PlatformURLHandlerFactory.startup(baseLocation + File.separator + META_AREA);
@@ -848,9 +817,9 @@ public static Object run(String applicationName, URL pluginPathLocation, String 
 		throw e;
 	}
 	// if the application is still null, then the user has not specified so use the
-	// one from the launch info. This is the normal case.
+	// one from the platform configuration. This is the normal case.
 	if (application == null)
-		application = LaunchInfo.getCurrent().getApplication();
+		application = getCurrentPlatformConfiguration().getApplicationIdentifier(feature);
 	IPlatformRunnable runnable = getRunnable(application);
 	if (runnable == null)
 		throw new IllegalArgumentException("Application not found: " + application);
@@ -891,7 +860,6 @@ public static void setupOptions() {
 	PlatformURLConnection.DEBUG_CONNECT = getBooleanOption(OPTION_URL_DEBUG_CONNECT, true);
 	PlatformURLConnection.DEBUG_CACHE_LOOKUP = getBooleanOption(OPTION_URL_DEBUG_CACHE_LOOKUP, true);
 	PlatformURLConnection.DEBUG_CACHE_COPY = getBooleanOption(OPTION_URL_DEBUG_CACHE_COPY, true);
-	LaunchInfo.DEBUG = getBooleanOption(OPTION_UPDATE_DEBUG, false);
 	PlatformConfiguration.DEBUG = getBooleanOption(OPTION_CONFIGURATION_DEBUG,false);
 }
 /**

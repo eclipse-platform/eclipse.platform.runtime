@@ -302,6 +302,29 @@ public interface IPlatformConfiguration {
 	public void setFeatureChangesConfigured();		
 	
 	/**
+	 * Returns the identifier of the configured application. The identifier must
+	 * represent a valid extension registered in the 
+	 * <code>org.eclipse.core.runtime.applications</code> extension point.
+	 * 
+	 * @param feature optional identifier for the primary feature. If specified,
+	 * the application for the feature is returned. If <code>null</code>, or the
+	 * specified feature is not defined, return the default Eclipse application.
+	 * @return an array of plug-in path elements (full URL entries), or an empty array.
+	 * @since 2.0
+	 */
+	public String getApplicationIdentifier(String feature);			
+	
+	/**
+	 * Returns the identifier of the configured primary feature. A primary feature
+	 * is used to specify product customization information for a running instance
+	 * of Eclipse. 
+	 * 
+	 * @return primary feature identifier, or <code>null</code> if none configured
+	 * @since 2.0
+	 */
+	public String getPrimaryFeatureIdentifier();	
+	
+	/**
 	 * Computes the plug-in path for this configuration. The result includes all plug-ins
 	 * visible on each of the configured sites based on each site policy.
 	 * 

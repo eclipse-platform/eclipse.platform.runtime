@@ -53,7 +53,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 
 	private static final String ECLIPSEDIR = "eclipse";
 	private static final String PLUGINS = "plugins";
-	private static final String INSTALL = "install";
+	private static final String INSTALL = "install/.metadata";
 	private static final String CONFIG_FILE = "platform.cfg";
 	private static final String CONFIG_FILE_INIT = "install.properties";
 	private static final String FEATURES = INSTALL + "/features";
@@ -96,7 +96,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	private static final String LINK_PATH = "path";
 	private static final String LINK_READ = "r";
 	private static final String LINK_READ_WRITE = "rw";
-
+	
 	public class SiteEntry implements IPlatformConfiguration.ISiteEntry {
 
 		private URL url;
@@ -599,6 +599,22 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	}
 
 	/*
+	 * @see IPlatformConfiguration#getApplication(String)
+	 */
+	public String getApplicationIdentifier(String feature) {
+		// TBA: change to use configured information
+		return "org.eclipse.ui.workbench";
+	}
+
+	/*
+	 * @see IPlatformConfiguration#getPrimaryFeature()
+	 */
+	public String getPrimaryFeatureIdentifier() {
+		// TBA: change to use configured information
+		return "org.eclipse.sdk";
+	}
+
+	/*
 	 * @see IPlatformConfiguration#getPluginPath()
 	 */
 	public URL[] getPluginPath() {
@@ -607,10 +623,10 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			debug("computed plug-in path:");
 			
 		ISiteEntry[] sites = getConfiguredSites();
+		URL pathURL;
 		for (int i=0; i<sites.length; i++) {
 			String[] plugins = sites[i].getPlugins();
 			for (int j=0; j<plugins.length; j++) {
-				URL pathURL;
 				try {
 					pathURL = new URL(sites[i].getURL(),plugins[j]);
 					path.add(pathURL);
@@ -620,6 +636,14 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 					if (DEBUG)
 						debug("   bad URL: "+e);
 				}
+			}
+			// add fragments entry for each site for 1.0 compatibility
+			try {
+				pathURL = new URL(sites[i].getURL(),"fragments/");
+				path.add(pathURL);
+			} catch(MalformedURLException e) {
+				if (DEBUG)
+					debug("   bad URL: "+e);
 			}
 		}			
 		return (URL[])path.toArray(new URL[0]);
@@ -672,13 +696,31 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		}
 	}
 	
+	// This method is currently public because it is called by InternalPlatform.
+	// However, it is NOT intended as API
+	// FIXME: restructure the code so that InternalBootLoader passes the
+	// required information to InternalPlatform
+	public URL getPluginPath(String pluginId) {
+		// return the plugin path element for the specified plugin. This method
+		// is used during boot processing to obtain "kernel" plugins whose
+		// class loaders must be created prior to the plugin registry being 
+		// available (ie. loaders needed to create the plugin registry)
+		// must be created 
+		try {
+			// FIXME: for now assume "kernel" plugins must be co-located
+			return new URL(BootLoader.getInstallURL(),"plugins/"+pluginId+"/");
+		} catch(MalformedURLException e) {
+			return null;
+		}
+	}
+	
 	static PlatformConfiguration getCurrent() {
 		return currentPlatformConfiguration;
 	}
 	
-	static void startup(URL url, String configArg) throws IOException {			
+	static void startup(String configArg) throws IOException {			
 		// for 1.0 compatibility
-		LaunchInfo.startup(url);
+		LaunchInfo.startup(null);
 		
 		// create current configuration
 		if (currentPlatformConfiguration == null)
@@ -1253,5 +1295,4 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	private static void debug(String s) {
 		System.out.println("PlatformConfig: " + s);
 	}
-
 }
