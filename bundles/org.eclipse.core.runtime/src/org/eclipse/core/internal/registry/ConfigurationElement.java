@@ -22,7 +22,7 @@ import org.osgi.framework.Bundle;
  */
 public class ConfigurationElement extends RegistryObject {
 	static final ConfigurationElement[] EMPTY_ARRAY = new ConfigurationElement[0];
-	private static final int PLUGIN_ERROR = 1;
+	static final int PLUGIN_ERROR = 1;
 
 	//The id of the parent element. It can be a configuration element or an extension
 	int parentId;

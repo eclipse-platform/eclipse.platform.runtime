@@ -298,19 +298,22 @@ public class RegistryObjectManager implements IObjectManager {
 
 	private Object load(int id, byte type) {
 		TableReader reader = new TableReader();
+		int offset = fileOffsets.get(id);
+		if (offset == Integer.MIN_VALUE)
+			return null;
 		switch (type) {
 			case CONFIGURATION_ELEMENT :
-				return reader.loadConfigurationElement(fileOffsets.get(id));
+				return reader.loadConfigurationElement(offset);
 
 			case THIRDLEVEL_CONFIGURATION_ELEMENT :
-				return reader.loadThirdLevelConfigurationElements(fileOffsets.get(id), this);
+				return reader.loadThirdLevelConfigurationElements(offset, this);
 
 			case EXTENSION :
-				return reader.loadExtension(fileOffsets.get(id));
+				return reader.loadExtension(offset);
 
 			case EXTENSION_POINT :
 			default : //avoid compile errors. type must always be known
-				return reader.loadExtensionPointTree(fileOffsets.get(id), this);
+				return reader.loadExtensionPointTree(offset, this);
 		}
 	}
 

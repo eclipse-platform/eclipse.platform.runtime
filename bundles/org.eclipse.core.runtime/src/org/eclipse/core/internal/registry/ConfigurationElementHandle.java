@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.eclipse.core.internal.registry;
 
+import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.runtime.*;
 
 /**
@@ -43,7 +44,13 @@ public class ConfigurationElementHandle extends Handle implements IConfiguration
 	}
 
 	public Object createExecutableExtension(String propertyName) throws CoreException {
-		return getConfigurationElement().createExecutableExtension(propertyName);
+		try {
+			return getConfigurationElement().createExecutableExtension(propertyName);
+		} catch (InvalidHandleException e) {
+			Status status = new Status(IStatus.ERROR, Platform.PI_RUNTIME, ConfigurationElement.PLUGIN_ERROR, e.getMessage(), e);
+			InternalPlatform.getDefault().getLog(InternalPlatform.getDefault().getBundleContext().getBundle()).log(status);
+			throw new CoreException(status);
+		}
 	}
 
 	public String getAttributeAsIs(String name) {
