@@ -20,18 +20,10 @@ import org.eclipse.core.runtime.IExtensionDelta;
  */
 public class RegistryDelta {
 	private Set extensionDeltas = new HashSet();
-	private List removedExtensionPoints = new ArrayList(3);
+	private IObjectManager objectManager;
 	
 	RegistryDelta() {
 		//Nothing to do
-	}
-
-	public void addRemovedExtensionPoints(String value) {
-		removedExtensionPoints.add(value);
-	}
-
-	public List getRemovedExtensionPoints() {
-		return removedExtensionPoints;
 	}
 
 	public int getExtensionDeltasCount() {
@@ -68,10 +60,19 @@ public class RegistryDelta {
 
 	void addExtensionDelta(IExtensionDelta extensionDelta) {
 		this.extensionDeltas.add(extensionDelta);
+		((ExtensionDelta) extensionDelta).setContainingDelta(this);
 	}
 
 	public String toString() {
 		return "\n\tHost " +  ": " + extensionDeltas; //$NON-NLS-1$//$NON-NLS-2$
 	}
 
+	void setObjectManager(IObjectManager objectManager) {
+		this.objectManager = objectManager;
+		//TODO May want to add things here.. 
+	}
+	
+	IObjectManager getObjectManager() {
+		return objectManager;
+	}
 }

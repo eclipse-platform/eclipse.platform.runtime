@@ -16,7 +16,11 @@ public class ExtensionDelta implements IExtensionDelta {
 	private int kind;
 	private int extension;
 	private int extensionPoint;
-	
+	private RegistryDelta containingDelta;
+
+	void setContainingDelta(RegistryDelta containingDelta) {
+		this.containingDelta = containingDelta;
+	}
 	int getExtensionId() {
 		return extension;
 	}
@@ -26,7 +30,7 @@ public class ExtensionDelta implements IExtensionDelta {
 	}
 	
 	public IExtensionPoint getExtensionPoint() {
-		return new ExtensionPointHandle(extensionPoint);
+		return new ExtensionPointHandle(containingDelta.getObjectManager(), extensionPoint);
 	}
 
 	public void setExtensionPoint(int extensionPoint) {
@@ -38,7 +42,7 @@ public class ExtensionDelta implements IExtensionDelta {
 	}
 
 	public IExtension getExtension() {
-		return new ExtensionHandle(extension);
+		return new ExtensionHandle(containingDelta.getObjectManager(), extension);
 	}
 
 	public void setExtension(int extension) {

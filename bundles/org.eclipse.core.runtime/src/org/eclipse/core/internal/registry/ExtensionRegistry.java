@@ -43,15 +43,13 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		};
 		private Map deltas;
 		private Object[] listenerInfos;
-		private RegistryObjectManager objectManager;
 
-		public ExtensionEventDispatcherJob(Object[] listenerInfos, Map deltas, RegistryObjectManager objects) {
+		public ExtensionEventDispatcherJob(Object[] listenerInfos, Map deltas) {
 			// name not NL'd since it is a system job
 			super("Registry event dispatcher"); //$NON-NLS-1$
 			setSystem(true);
 			this.listenerInfos = listenerInfos;
 			this.deltas = deltas;
-			this.objectManager = objects;
 			// all extension event dispatching jobs use this rule
 			setRule(EXTENSION_EVENT_RULE);
 		}
@@ -69,67 +67,67 @@ public class ExtensionRegistry implements IExtensionRegistry {
 					result.add(new Status(IStatus.ERROR, Platform.PI_RUNTIME, IStatus.OK, message, re));
 				}
 			}
-			cleanupRemovedObjects();
+//			cleanupRemovedObjects();
 			return result;
 		}
 
-		private Handle[] collect(ConfigurationElementHandle ce) {
-			ConfigurationElementHandle[] children = (ConfigurationElementHandle[]) ce.getChildren();
-			Handle[] result = new Handle[] {ce};
-			for (int i = 0; i < children.length; i++) {
-				result = (Handle[]) concatArrays(result, collect(children[i]));
-			}
-			return result;
-		}
+//		private Handle[] collect(ConfigurationElementHandle ce) {
+//			ConfigurationElementHandle[] children = (ConfigurationElementHandle[]) ce.getChildren();
+//			Handle[] result = new Handle[] {ce};
+//			for (int i = 0; i < children.length; i++) {
+//				result = (Handle[]) concatArrays(result, collect(children[i]));
+//			}
+//			return result;
+//		}
 
-		//Collect all the elements that must be removed, then actually remove them. 
-		void cleanupRemovedObjects() {
-			List removedExtensions = new ArrayList(); //List of ExtensionHandle
-			List removedExtensionPoints = new ArrayList(); //List of extensionpoint name
-
-			Set deltaEntries = deltas.entrySet();
-			//Collect the extensions and the extension points being removed
-			for (Iterator iter = deltaEntries.iterator(); iter.hasNext();) {
-				Map.Entry entry = (Map.Entry) iter.next();
-				RegistryDelta currentDelta = (RegistryDelta) entry.getValue();
-
-				//First collect all the extensions being removed
-				ExtensionDelta[] extensionDeltas = (ExtensionDelta[]) ((RegistryDelta) entry.getValue()).getExtensionDeltas();
-				for (int i = 0; i < extensionDeltas.length; i++) {
-					if (extensionDeltas[i].getKind() != IExtensionDelta.REMOVED)
-						continue;
-					removedExtensions.add(extensionDeltas[i].getExtension());
-				}
-
-				removedExtensionPoints.addAll(currentDelta.getRemovedExtensionPoints());
-			}
-
-			Handle[] toBeRemoved = new Handle[0];
-			//We do not need to iterate through the extensions of the extension points because 
-			//the code responsible for doing the removal will have them added in various deltas. Moreover, by now the extension point no longer has extensions
-			//since the links have been cut when doing the remove.
-
-			//Now do a traversal of all the extensions that must be removed to collect the ids of all the configuration elements to remove
-			for (Iterator iter = removedExtensions.iterator(); iter.hasNext();) {
-				ExtensionHandle extension = (ExtensionHandle) iter.next();
-				toBeRemoved = (Handle[]) concatArrays(toBeRemoved, new ExtensionHandle[] {extension});
-				ConfigurationElementHandle[] ces = (ConfigurationElementHandle[]) extension.getConfigurationElements();
-				for (int j = 0; j < ces.length; j++) {
-					toBeRemoved = (Handle[]) concatArrays(toBeRemoved, collect(ces[j]));
-				}
-			}
-
-			//Now actually remove the objects
-			//remove the extension points
-			for (Iterator iter = removedExtensionPoints.iterator(); iter.hasNext();) {
-				objectManager.removeExtensionPoint((String) iter.next());
-			}
-
-			//remove all the other objects
-			for (int i = 0; i < toBeRemoved.length; i++) {
-				objectManager.remove((toBeRemoved[i]).getId(), true);
-			}
-		}
+//		//Collect all the elements that must be removed, then actually remove them. 
+//		void cleanupRemovedObjects() {
+//			List removedExtensions = new ArrayList(); //List of ExtensionHandle
+//			List removedExtensionPoints = new ArrayList(); //List of extensionpoint name
+//
+//			Set deltaEntries = deltas.entrySet();
+//			//Collect the extensions and the extension points being removed
+//			for (Iterator iter = deltaEntries.iterator(); iter.hasNext();) {
+//				Map.Entry entry = (Map.Entry) iter.next();
+//				RegistryDelta currentDelta = (RegistryDelta) entry.getValue();
+//
+//				//First collect all the extensions being removed
+//				ExtensionDelta[] extensionDeltas = (ExtensionDelta[]) ((RegistryDelta) entry.getValue()).getExtensionDeltas();
+//				for (int i = 0; i < extensionDeltas.length; i++) {
+//					if (extensionDeltas[i].getKind() != IExtensionDelta.REMOVED)
+//						continue;
+//					removedExtensions.add(extensionDeltas[i].getExtension());
+//				}
+//
+//				removedExtensionPoints.addAll(currentDelta.getRemovedExtensionPoints());
+//			}
+//
+//			Handle[] toBeRemoved = new Handle[0];
+//			//We do not need to iterate through the extensions of the extension points because 
+//			//the code responsible for doing the removal will have them added in various deltas. Moreover, by now the extension point no longer has extensions
+//			//since the links have been cut when doing the remove.
+//
+//			//Now do a traversal of all the extensions that must be removed to collect the ids of all the configuration elements to remove
+//			for (Iterator iter = removedExtensions.iterator(); iter.hasNext();) {
+//				ExtensionHandle extension = (ExtensionHandle) iter.next();
+//				toBeRemoved = (Handle[]) concatArrays(toBeRemoved, new ExtensionHandle[] {extension});
+//				ConfigurationElementHandle[] ces = (ConfigurationElementHandle[]) extension.getConfigurationElements();
+//				for (int j = 0; j < ces.length; j++) {
+//					toBeRemoved = (Handle[]) concatArrays(toBeRemoved, collect(ces[j]));
+//				}
+//			}
+//
+//			//Now actually remove the objects
+//			//remove the extension points
+//			for (Iterator iter = removedExtensionPoints.iterator(); iter.hasNext();) {
+//				objectManager.removeExtensionPoint((String) iter.next());
+//			}
+//
+//			//remove all the other objects
+//			for (int i = 0; i < toBeRemoved.length; i++) {
+//				objectManager.remove((toBeRemoved[i]).getId(), true);
+//			}
+//		}
 	}
 
 	class ListenerInfo {
@@ -164,6 +162,10 @@ public class ExtensionRegistry implements IExtensionRegistry {
 
 	private RegistryObjectManager registryObjects = null;
 
+	RegistryObjectManager getObjectManager() {
+		return registryObjects;
+	}
+	
 	/**
 	 * Adds and resolves all extensions and extension points provided by the
 	 * plug-in.
@@ -176,6 +178,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		access.enterWrite();
 		try {
 			basicAdd(element, true);
+			getDelta(element.getNamespace()).setObjectManager(registryObjects);
 			fireRegistryChangeEvent();
 		} finally {
 			access.exitWrite();
@@ -269,7 +272,6 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	private boolean basicRemove(long bundleId) {
 		// ignore anonymous namespaces
 		removeExtensionsAndExtensionPoints(bundleId);
-		registryObjects.removeContribution(bundleId);
 		return true;
 	}
 
@@ -296,7 +298,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		// the deltas have been saved for notification - we can clear them now
 		deltas.clear();
 		// do the notification asynchronously
-		new ExtensionEventDispatcherJob(tmpListeners, tmpDeltas, registryObjects).schedule();
+		new ExtensionEventDispatcherJob(tmpListeners, tmpDeltas).schedule();
 	}
 
 	/*
@@ -548,9 +550,17 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		}
 	}
 
-	private void recordExtensionPointRemoval(ExtensionPoint extPoint) {
-		RegistryDelta pluginDelta = getDelta(extPoint.getNamespace());
-		pluginDelta.addRemovedExtensionPoints(extPoint.getUniqueIdentifier());
+	private void recordRemoval(Bundle removedBundle) {
+		String namespace = removedBundle.getSymbolicName();
+//		if (Platform.isFragment(removedBundle))
+//			Platform.get
+		//TODO Here will probably have problems to get the namespace if it's a fragment
+		int[] exts = registryObjects.getExtensionsFrom(removedBundle.getBundleId());
+		Extension[] aexts = (Extension[]) registryObjects.getObjects(exts, RegistryObjectManager.EXTENSION);
+		IObjectManager mgr = registryObjects.getRemovedObjects(removedBundle.getBundleId());
+		for (int i = 0; i < aexts.length; i++) {
+			getDelta(registryObjects.getExtensionPointObject(aexts[i].getExtensionPointIdentifier()).getNamespace()).setObjectManager(mgr);
+		}
 	}
 
 	/**
@@ -561,25 +571,15 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	 * interested on changes in the given plug-in.
 	 * </p>
 	 */
-	public boolean remove(long bundleId) {
+	public boolean remove(Bundle removedBundle) {
 		access.enterWrite();
 		try {
-			IRegistryChangeListener dummyChangeListener = null;
-			if (listeners.isEmpty()) {
-				dummyChangeListener = new IRegistryChangeListener() {
-					public void registryChanged(IRegistryChangeEvent event) {
-						// nothing to do
-					}
-				};
-				addRegistryChangeListener(dummyChangeListener);
-			}
-
-			if (!basicRemove(bundleId))
+			if (!basicRemove(removedBundle.getBundleId()))
 				return false;
+			recordRemoval(removedBundle);
+			registryObjects.removeContribution(removedBundle.getBundleId());
 			fireRegistryChangeEvent();
-
-			if (dummyChangeListener != null)
-				removeRegistryChangeListener(dummyChangeListener);
+			
 			return true;
 		} finally {
 			access.exitWrite();
@@ -614,7 +614,6 @@ public class ExtensionRegistry implements IExtensionRegistry {
 	private void removeExtensionPoint(int extPoint) {
 		ExtensionPoint extensionPoint = (ExtensionPoint) registryObjects.getObject(extPoint, RegistryObjectManager.EXTENSION_POINT);
 		int[] existingExtensions = extensionPoint.getRawChildren();
-		recordExtensionPointRemoval(extensionPoint);
 		if (existingExtensions == null || existingExtensions.length == 0) {
 			return;
 		}
@@ -645,7 +644,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 
 	public ExtensionRegistry() {
 		boolean fromCache = false;
-		registryObjects = Handle.getObjectManager();
+		registryObjects = new RegistryObjectManager();
 		if (!"true".equals(System.getProperty(InternalPlatform.PROP_NO_REGISTRY_CACHE))) { //$NON-NLS-1$
 			// Try to read the registry from the cache first. If that fails, create a new registry
 			MultiStatus problems = new MultiStatus(Platform.PI_RUNTIME, ExtensionsParser.PARSE_PROBLEM, "Registry cache problems", null); //$NON-NLS-1$

@@ -18,8 +18,8 @@ import org.eclipse.core.runtime.*;
 public class ExtensionHandle extends Handle implements IExtension {
 	static final ExtensionHandle[] EMPTY_ARRAY = new ExtensionHandle[0];
 
-	public ExtensionHandle(int i) {
-		super(i);
+	public ExtensionHandle(IObjectManager objectManager, int id) {
+		super(objectManager, id);
 	}
 
 	private Extension getExtension() {

@@ -17,8 +17,8 @@ import org.eclipse.core.runtime.IConfigurationElement;
  */
 public class ThirdLevelConfigurationElementHandle extends ConfigurationElementHandle {
 
-    public ThirdLevelConfigurationElementHandle(int id) {
-        super(id);
+    public ThirdLevelConfigurationElementHandle(IObjectManager objectManager, int id) {
+        super(objectManager, id);
     }
 	
     protected ConfigurationElement getConfigurationElement() {

@@ -20,7 +20,7 @@ import org.eclipse.core.internal.runtime.Policy;
  * It serves the objects which are either directly obtained from memory or read from a cache.
  * It also returns handles for objects.
  */
-public class RegistryObjectManager {
+public class RegistryObjectManager implements IObjectManager {
 	//Constants used to get the objects and their handles
 	static final byte CONFIGURATION_ELEMENT = 1;
 	static final byte EXTENSION = 2;
@@ -65,6 +65,7 @@ public class RegistryObjectManager {
 			cache = new ReferenceMap(ReferenceMap.HARD, ReferenceMap.SOFT);
 		}
 		newContributions = new KeyedHashSet();
+		fileOffsets = new HashtableOfInt();
 	}
 
 	/**
@@ -170,7 +171,7 @@ public class RegistryObjectManager {
 		heldObjects.remove(toRelease);
 	}
 
-	synchronized Object getObject(int id, byte type) {
+	public synchronized Object getObject(int id, byte type) {
 		return basicGetObject(id, type);
 	}
 
@@ -185,7 +186,7 @@ public class RegistryObjectManager {
 		return result;
 	}
 
-	synchronized RegistryObject[] getObjects(int[] values, byte type) {
+	public synchronized RegistryObject[] getObjects(int[] values, byte type) {
 		if (values.length == 0) {
 			switch (type) {
 				case EXTENSION_POINT :
@@ -224,24 +225,24 @@ public class RegistryObjectManager {
 		return (ExtensionPoint) getObject(id, EXTENSION_POINT);
 	}
 
-	Handle getHandle(int id, byte type) {
+	public Handle getHandle(int id, byte type) {
 		switch (type) {
 			case EXTENSION_POINT :
-				return new ExtensionPointHandle(id);
+				return new ExtensionPointHandle(this, id);
 
 			case EXTENSION :
-				return new ExtensionHandle(id);
+				return new ExtensionHandle(this, id);
 
 			case CONFIGURATION_ELEMENT :
-				return new ConfigurationElementHandle(id);
+				return new ConfigurationElementHandle(this, id);
 
 			case THIRDLEVEL_CONFIGURATION_ELEMENT :
 			default : //avoid compiler error, type should always be known
-				return new ThirdLevelConfigurationElementHandle(id);
+				return new ThirdLevelConfigurationElementHandle(this, id);
 		}
 	}
 
-	Handle[] getHandles(int[] ids, byte type) {
+	public Handle[] getHandles(int[] ids, byte type) {
 		Handle[] results = null;
 		int nbrId = ids.length;
 		switch (type) {
@@ -250,7 +251,7 @@ public class RegistryObjectManager {
 					return ExtensionPointHandle.EMPTY_ARRAY;
 				results = new ExtensionPointHandle[nbrId];
 				for (int i = 0; i < nbrId; i++) {
-					results[i] = new ExtensionPointHandle(ids[i]);
+					results[i] = new ExtensionPointHandle(this, ids[i]);
 				}
 				break;
 
@@ -259,7 +260,7 @@ public class RegistryObjectManager {
 					return ExtensionHandle.EMPTY_ARRAY;
 				results = new ExtensionHandle[nbrId];
 				for (int i = 0; i < nbrId; i++) {
-					results[i] = new ExtensionHandle(ids[i]);
+					results[i] = new ExtensionHandle(this, ids[i]);
 				}
 				break;
 
@@ -268,7 +269,7 @@ public class RegistryObjectManager {
 					return ConfigurationElementHandle.EMPTY_ARRAY;
 				results = new ConfigurationElementHandle[nbrId];
 				for (int i = 0; i < nbrId; i++) {
-					results[i] = new ConfigurationElementHandle(ids[i]);
+					results[i] = new ConfigurationElementHandle(this, ids[i]);
 				}
 				break;
 
@@ -277,7 +278,7 @@ public class RegistryObjectManager {
 					return ConfigurationElementHandle.EMPTY_ARRAY;
 				results = new ThirdLevelConfigurationElementHandle[nbrId];
 				for (int i = 0; i < nbrId; i++) {
-					results[i] = new ThirdLevelConfigurationElementHandle(ids[i]);
+					results[i] = new ThirdLevelConfigurationElementHandle(this, ids[i]);
 				}
 				break;
 		}
@@ -308,12 +309,12 @@ public class RegistryObjectManager {
 				return reader.loadExtension(fileOffsets.get(id));
 
 			case EXTENSION_POINT :
-			default :	//avoid compile errors. type must always be known
+			default : //avoid compile errors. type must always be known
 				return reader.loadExtensionPointTree(fileOffsets.get(id), this);
 		}
 	}
 
-	synchronized public int[] getExtensionsFrom(long bundleId) {
+	synchronized int[] getExtensionsFrom(long bundleId) {
 		KeyedElement tmp = newContributions.getByKey(new Long(bundleId));
 		if (tmp == null)
 			tmp = getFormerContributions().getByKey(new Long(bundleId));
@@ -454,5 +455,138 @@ public class RegistryObjectManager {
 	//	This method is only used by the writer to reach in
 	KeyedHashSet[] getContributions() {
 		return new KeyedHashSet[] {newContributions, getFormerContributions()};
+	}
+
+	synchronized IObjectManager getRemovedObjects(long contributionId) {
+		int[] xpts = getExtensionPointsFrom(contributionId);
+		int[] exts = getExtensionsFrom(contributionId);
+		Map actualObjects = new HashMap(xpts.length + exts.length);
+		for (int i = 0; i < exts.length; i++) {
+			actualObjects.put(new Integer(exts[i]), basicGetObject(exts[i], RegistryObjectManager.EXTENSION));
+//			int offsetRemoved = fileOffsets.removeKey(exts[i]);
+//			if (offsetRemoved != Integer.MIN_VALUE)
+//				actualObjects.put(exts[i], offsetRemoved);
+		}
+		for (int i = 0; i < xpts.length; i++) {
+			actualObjects.put(new Integer(xpts[i]), basicGetObject(xpts[i], RegistryObjectManager.EXTENSION_POINT));
+		}
+		return new TemporaryObjectManager(actualObjects, this);
+		//TODO Here we need to remove from the extension point table as well.
+		//We need to remove from the object table also
+	}
+
+	private static class TemporaryObjectManager implements IObjectManager {
+		Map actualObjects;
+		RegistryObjectManager parent;
+		
+		public TemporaryObjectManager(Map actualObjects, RegistryObjectManager parent) {
+			this.actualObjects = actualObjects;
+			this.parent = parent;
+		}
+
+		public Handle getHandle(int id, byte type) {
+			switch (type) {
+				case EXTENSION_POINT :
+					return new ExtensionPointHandle(this, id);
+
+				case EXTENSION :
+					return new ExtensionHandle(this, id);
+
+				case CONFIGURATION_ELEMENT :
+					return new ConfigurationElementHandle(this, id);
+
+				case THIRDLEVEL_CONFIGURATION_ELEMENT :
+				default : //avoid compiler error, type should always be known
+					return new ThirdLevelConfigurationElementHandle(this, id);
+			}
+		}
+
+		public Handle[] getHandles(int[] ids, byte type) {
+			Handle[] results = null;
+			int nbrId = ids.length;
+			switch (type) {
+				case EXTENSION_POINT :
+					if (nbrId == 0)
+						return ExtensionPointHandle.EMPTY_ARRAY;
+					results = new ExtensionPointHandle[nbrId];
+					for (int i = 0; i < nbrId; i++) {
+						results[i] = new ExtensionPointHandle(this, ids[i]);
+					}
+					break;
+
+				case EXTENSION :
+					if (nbrId == 0)
+						return ExtensionHandle.EMPTY_ARRAY;
+					results = new ExtensionHandle[nbrId];
+					for (int i = 0; i < nbrId; i++) {
+						results[i] = new ExtensionHandle(this, ids[i]);
+					}
+					break;
+
+				case CONFIGURATION_ELEMENT :
+					if (nbrId == 0)
+						return ConfigurationElementHandle.EMPTY_ARRAY;
+					results = new ConfigurationElementHandle[nbrId];
+					for (int i = 0; i < nbrId; i++) {
+						results[i] = new ConfigurationElementHandle(this, ids[i]);
+					}
+					break;
+
+				case THIRDLEVEL_CONFIGURATION_ELEMENT :
+					if (nbrId == 0)
+						return ConfigurationElementHandle.EMPTY_ARRAY;
+					results = new ThirdLevelConfigurationElementHandle[nbrId];
+					for (int i = 0; i < nbrId; i++) {
+						results[i] = new ThirdLevelConfigurationElementHandle(this, ids[i]);
+					}
+					break;
+			}
+			return results;
+		}
+
+		public Object getObject(int id, byte type) {
+			try {
+				return  parent.getObject(id, type);
+			} catch(InvalidHandleException e) {
+				return actualObjects.get(new Integer(id));
+			}
+		}
+
+		public RegistryObject[] getObjects(int[] values, byte type) {
+			if (values.length == 0) {
+				switch (type) {
+					case EXTENSION_POINT :
+						return ExtensionPoint.EMPTY_ARRAY;
+					case EXTENSION :
+						return Extension.EMPTY_ARRAY;
+					case CONFIGURATION_ELEMENT :
+					case THIRDLEVEL_CONFIGURATION_ELEMENT :
+						return ConfigurationElement.EMPTY_ARRAY;
+				}
+			}
+
+			RegistryObject[] results = null;
+			switch (type) {
+				case EXTENSION_POINT :
+					results = new ExtensionPoint[values.length];
+					break;
+				case EXTENSION :
+					results = new Extension[values.length];
+					break;
+				case CONFIGURATION_ELEMENT :
+				case THIRDLEVEL_CONFIGURATION_ELEMENT :
+					results = new ConfigurationElement[values.length];
+					break;
+			}
+			for (int i = 0; i < values.length; i++) {
+				try {
+				results[i] = (RegistryObject) parent.getObject(values[i], type);
+				} catch(InvalidHandleException e) {
+					results[i] = (RegistryObject) actualObjects.get(new Integer(values[i]));
+				}
+			}
+			return results;
+		}
+
 	}
 }

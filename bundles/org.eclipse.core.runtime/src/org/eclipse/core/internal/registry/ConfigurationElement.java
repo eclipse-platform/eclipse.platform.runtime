@@ -177,7 +177,8 @@ public class ConfigurationElement extends RegistryObject {
 		if (result instanceof IExecutableExtension) {
 			try {
 				// make the call even if the initialization string is null
-				((IExecutableExtension) result).setInitializationData(new ConfigurationElementHandle(cfig.getObjectId()), propertyName, initData);
+				//TODO Need to change here the access to the registry manager
+				((IExecutableExtension) result).setInitializationData(new ConfigurationElementHandle(((ExtensionRegistry)InternalPlatform.getDefault().getRegistry()).getObjectManager(),cfig.getObjectId()), propertyName, initData);
 			} catch (CoreException ce) {
 				// user code threw exception
 				InternalPlatform.getDefault().getLog(InternalPlatform.getDefault().getBundleContext().getBundle()).log(ce.getStatus());
@@ -270,7 +271,7 @@ public class ConfigurationElement extends RegistryObject {
 
 		ConfigurationElement[] result = new ConfigurationElement[1]; //Most of the time there is only one match
 		int idx = 0;
-		RegistryObjectManager objectManager = Handle.getObjectManager();
+		RegistryObjectManager objectManager = ((ExtensionRegistry)InternalPlatform.getDefault().getRegistry()).getObjectManager(); //TODO To change
 		for (int i = 0; i < children.length; i++) {
 			ConfigurationElement toTest = (ConfigurationElement) objectManager.getObject(children[i], extraDataOffset == -1 ? RegistryObjectManager.CONFIGURATION_ELEMENT : RegistryObjectManager.THIRDLEVEL_CONFIGURATION_ELEMENT);
 			if (toTest.name.equals(childrenName)) {

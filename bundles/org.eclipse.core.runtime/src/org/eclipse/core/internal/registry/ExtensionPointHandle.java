@@ -20,8 +20,8 @@ import org.eclipse.core.runtime.*;
 public class ExtensionPointHandle extends Handle implements IExtensionPoint {
 	static final ExtensionPointHandle[] EMPTY_ARRAY = new ExtensionPointHandle[0];
 
-	public ExtensionPointHandle(int i) {
-		super(i);
+	public ExtensionPointHandle(IObjectManager objectManager, int id) {
+		super(objectManager, id);
 	}
 
 	public IExtension[] getExtensions() {

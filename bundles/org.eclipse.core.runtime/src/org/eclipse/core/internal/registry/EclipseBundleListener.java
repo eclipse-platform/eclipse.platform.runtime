@@ -89,7 +89,7 @@ public class EclipseBundleListener implements SynchronousBundleListener {
 	}
 
 	private void removeBundle(Bundle bundle) {
-		registry.remove(bundle.getBundleId());		
+		registry.remove(bundle);		
 	}
 
 	private void addBundle(Bundle bundle) {
@@ -146,7 +146,7 @@ public class EclipseBundleListener implements SynchronousBundleListener {
 			}
 			ExtensionsParser parser = new ExtensionsParser(problems);
 			Contribution bundleModel = new Contribution(bundle); 
-			parser.parseManifest(xmlTracker, new InputSource(is), manifestType, manifestName, Handle.getObjectManager(), bundleModel, b);
+			parser.parseManifest(xmlTracker, new InputSource(is), manifestType, manifestName, registry.getObjectManager(), bundleModel, b);
 			if (problems.getSeverity() != IStatus.OK)
 				InternalPlatform.getDefault().log(problems);
 			return bundleModel;

@@ -17,13 +17,7 @@ package org.eclipse.core.internal.registry;
  * @since 3.1. 
  */
 public abstract class Handle {
-	protected static RegistryObjectManager objectManager;
-
-	static RegistryObjectManager getObjectManager() {
-		if (objectManager == null)
-			objectManager = new RegistryObjectManager();
-		return objectManager;
-	}
+	protected IObjectManager objectManager;
 
 	private int objectId;
 
@@ -31,8 +25,9 @@ public abstract class Handle {
 		return objectId;
 	}
 
-	Handle(int value) {
+	Handle(IObjectManager objectManager, int value) {
 		objectId = value;
+		this.objectManager = objectManager;
 	}
 
 	/**

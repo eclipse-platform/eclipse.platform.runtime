@@ -18,8 +18,8 @@ import org.eclipse.core.runtime.*;
 public class ConfigurationElementHandle extends Handle implements IConfigurationElement {
 	static final ConfigurationElementHandle[] EMPTY_ARRAY = new ConfigurationElementHandle[0];
 
-	public ConfigurationElementHandle(int id) {
-		super(id);
+	public ConfigurationElementHandle(IObjectManager objectManager, int id) {
+		super(objectManager, id);
 	}
 
 	protected ConfigurationElement getConfigurationElement() {
