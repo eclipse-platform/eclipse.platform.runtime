@@ -27,7 +27,6 @@ package org.eclipse.core.runtime;
  * </p>
  * 
  * @see IConfigurationElement#createExecutableExtension 
- * @deprecated Use {@link org.eclipse.core.runtime.registry.IExecutableExtension org.eclipse.core.runtime.registry.IExecutableExtension} instead
  */
 public interface IExecutableExtension {
 	/**

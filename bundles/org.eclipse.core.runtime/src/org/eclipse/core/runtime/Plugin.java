@@ -11,14 +11,13 @@
 package org.eclipse.core.runtime;
 
 import java.io.*;
-import java.net.MalformedURLException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.*;
-import org.eclipse.core.internal.boot.PlatformURLHandler;
-import org.eclipse.core.internal.plugins.PluginDescriptor;
 import org.eclipse.core.internal.runtime.*;
-import org.eclipse.core.runtime.compatibility.PluginActivator;
-import org.osgi.framework.*;
+import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleException;
 
 /**
  * The abstract superclass of all plug-in runtime class
@@ -157,7 +156,6 @@ import org.osgi.framework.*;
  * The responsibilities of the plugin class are now being spread across {@link org.osgi.framework.Bundle Bundle}, {@link org.osgi.framework.BundleActivator BundleActivator}
  */
 public abstract class Plugin {
-	private PluginActivator activator;
 	private Bundle bundle;
 	/**
 	 * The debug flag for this plug-in.  The flag is false by default.
@@ -180,6 +178,7 @@ public abstract class Plugin {
 	 * </p>
 	 * 
 	 * @since 2.0
+	 * @deprecated See BundleHelper
 	 */
 	public static final String PREFERENCES_DEFAULT_OVERRIDE_BASE_NAME = "preferences"; //$NON-NLS-1$
 	public static final String PREFERENCES_DEFAULT_OVERRIDE_FILE_NAME = PREFERENCES_DEFAULT_OVERRIDE_BASE_NAME + ".ini"; //$NON-NLS-1$
@@ -211,7 +210,6 @@ public abstract class Plugin {
 	 */
 	public Plugin(IPluginDescriptor descriptor) {
 		Assert.isNotNull(descriptor);
-		activator = ((PluginDescriptor) descriptor).getActivator();
 		Assert.isTrue(!descriptor.isPluginActivated(), Policy.bind("plugin.deactivatedLoad", this.getClass().getName(), descriptor.getUniqueIdentifier() + " is not activated")); //$NON-NLS-1$ //$NON-NLS-2$
 		this.descriptor = descriptor;
 		String key = descriptor.getUniqueIdentifier() + "/debug"; //$NON-NLS-1$
@@ -234,9 +232,10 @@ public abstract class Plugin {
 	 * 
 	 * @param file path relative to plug-in installation location 
 	 * @return a URL for the given path or <code>null</code>
+	 * @deprecated Use @link PlatformHelper#find(Bundle, IPath) PlatformHelper#find(Bundle, IPath)
 	 */
 	public final URL find(IPath path) {
-		return getDescriptor().find(path);
+		return PlatformHelper.find(bundle, path);
 	}
 	/**
 	 * Returns a URL for the given path.  Returns <code>null</code> if the URL
@@ -250,30 +249,16 @@ public abstract class Plugin {
 	 * or does not contain the required substitution argument, the default
 	 * is used.
 	 * @return a URL for the given path or <code>null</code>
+	 * @deprecated Use @link PlatformHelper#find(Bundle, IPath, Map) PlatformHelper#find(Bundle, IPath, Map) 
 	 */
 	public final URL find(IPath path, Map override) {
-		return getDescriptor().find(path, override);
-	}
-	private String getFileFromURL(URL target) {
-		String protocol = target.getProtocol();
-		if (protocol.equals(PlatformURLHandler.FILE))
-			return target.getFile();
-		if (protocol.equals(PlatformURLHandler.JAR)) {
-			// strip off the jar separator at the end of the url then do a recursive call
-			// to interpret the sub URL.
-			String file = target.getFile();
-			file = file.substring(0, file.length() - PlatformURLHandler.JAR_SEPARATOR.length());
-			try {
-				return getFileFromURL(new URL(file));
-			} catch (MalformedURLException e) {
-			}
-		}
-		return null;
+		return PlatformHelper.find(bundle, path, override);
 	}
 	/**
 	 * Returns the plug-in descriptor for this plug-in runtime object.
 	 *
 	 * @return the plug-in descriptor for this plug-in runtime object
+	 * @deprecated
 	 */
 	public final IPluginDescriptor getDescriptor() {
 		return descriptor;
@@ -282,6 +267,7 @@ public abstract class Plugin {
 	 * Returns the log for this plug-in.  If no such log exists, one is created.
 	 *
 	 * @return the log for this plug-in
+	 * @deprecated See @link BundleHelper#getLog() BundleHelper#getLog()
 	 */
 	public final ILog getLog() {
 		return InternalPlatform.getDefault().getLog(InternalPlatform.getDefault().getBundle(descriptor.getUniqueIdentifier()));
@@ -301,6 +287,7 @@ public abstract class Plugin {
 	 * </p>
 	 *
 	 * @return a local file system path
+	 * @deprecated See @link BundleHelper#getStateLocation() BundleHelper#getStateLocation()
 	 */
 	public final IPath getStateLocation() {
 		return InternalPlatform.getDefault().getStateLocation(this.getDescriptor().getUniqueIdentifier(), true);
@@ -333,6 +320,7 @@ public abstract class Plugin {
 	 * @see Preferences#setValue
 	 * @see Preferences#setToDefault
 	 * @since 2.0
+	 * @deprecated Use @link BundleHelper#getPluginPreferences() BundleHelper#getPluginPreferences() 
 	 */
 	public final Preferences getPluginPreferences() {
 		if (preferences != null) {
@@ -372,6 +360,7 @@ public abstract class Plugin {
 	 * 
 	 * @see Preferences#load
 	 * @since 2.0
+	 * @deprecated Use @link BundleHelper#loadPluginPreferences() BundleHelper#loadPluginPreferences() 
 	 */
 	private void loadPluginPreferences() {
 		// the preferences file is located in the plug-in's state area at a well-known name
@@ -437,6 +426,7 @@ public abstract class Plugin {
 	 * @see Preferences#store
 	 * @see Preferences#needsSaving
 	 * @since 2.0
+	 * @deprecated @link BundleHelper#savePluginPreferences() BundleHelper#savePluginPreferences()
 	 */
 	public final void savePluginPreferences() {
 		if (preferences == null || !preferences.needsSaving()) {
@@ -505,6 +495,7 @@ public abstract class Plugin {
 	 * </p>
 	 * 
 	 * @since 2.0
+	 * @deprecated Use @link BundleHelper#initializeDefaultPluginPreferences() BundleHelper#initializeDefaultPluginPreferences()
 	 */
 	protected void initializeDefaultPluginPreferences() {
 		// default implementation of this method - spec'd to do nothing
@@ -624,6 +615,7 @@ public abstract class Plugin {
 	 * @param file path relative to plug-in installation location
 	 * @return an input stream
 	 * @see #openStream(IPath,boolean)
+	 * @deprecated @link PlatformHelper#openStream(Bundle, IPath) PlatformHelper#openStream(Bundle, IPath)
 	 */
 	public final InputStream openStream(IPath file) throws IOException {
 		return openStream(file, false);
@@ -644,18 +636,11 @@ public abstract class Plugin {
 	 *   of the file, and <code>false</code> for the file exactly
 	 *   as specified
 	 * @return an input stream
+	 * @deprecated @link PlatformHelper#openStream(Bundle, IPath, boolean) PlatformHelper#openStream(Bundle, IPath, boolean)
 	 */
 	public final InputStream openStream(IPath file, boolean localized) throws IOException {
 		URL target = new URL(getDescriptor().getInstallURL() + file.toString());
 		return target.openStream();
-	}
-
-	PluginActivator getPluginActivator() {
-		return activator;
-	}
-
-	public void setPluginActivator(PluginActivator value) {
-		activator = value;
 	}
 	/**
 	 * Sets whether this plug-in is in debug mode.
@@ -695,8 +680,26 @@ public abstract class Plugin {
 	 *   this plug-in
 	 */
 	public void shutdown() throws CoreException {
-		((PluginDescriptor) descriptor).doPluginDeactivation();
-		activator = null;
+		Method m;
+		try {
+			m = descriptor.getClass().getMethod("doPluginDeactivation", new Class[0]);
+			m.invoke(descriptor, null);
+		} catch (SecurityException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchMethodException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvocationTargetException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	/**
@@ -743,17 +746,5 @@ public abstract class Plugin {
 	 */
 	public String toString() {
 		return descriptor.toString();
-	}
-
-	public Bundle getBundle() {
-		return bundle;
-	}
-	/**
-	 * Provides (restricted) access to the plugin's bundle context.
-	 */
-	//TODO: this should be protected
-	public BundleContext getContext() {
-		PluginActivator activator = this.activator;
-		return activator == null ? null : activator.getBundleContext();
 	}
 }

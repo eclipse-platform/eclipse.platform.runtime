@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.eclipse.core.runtime;
 
+import org.eclipse.core.runtime.IPluginDescriptor;
+
 /**
  * An extension declared in a plug-in.
  * All information is obtained from the declaring plug-in's 
@@ -17,7 +19,6 @@ package org.eclipse.core.runtime;
  * <p>
  * This interface is not intended to be implemented by clients.
  * </p>
- * @deprecated Use {@link org.eclipse.core.runtime.registry.IExtension org.eclipse.core.runtime.registry.IExtension}
  */
 public interface IExtension {
 	/**
@@ -35,18 +36,17 @@ public interface IExtension {
 	 * Returns the descriptor of the plug-in that declares this extension.
 	 *
 	 * @return the plug-in that declares this extension
-	 * @deprecated {@link org.eclipse.core.runtime.registry.IExtension#getParentIdentifier() org.eclipse.core.runtime.registry.IExtension#getParentIdentifier()}
+	 * @deprecated {@link org.eclipse.core.runtime.IExtension#getParentIdentifier() org.eclipse.core.IExtension#getParentIdentifier()}
 	 */
 	public IPluginDescriptor getDeclaringPluginDescriptor();
+	public String getParentIdentifier();
 	/**
 	 * Returns the unique identifier of the extension point
 	 * that this extension gets plugged into.
 	 *
 	 * @return the unique identifier of the relevant extension point
-	 * @deprecated {@link org.eclipse.core.runtime.registry.IExtension#getExtensionPointIdentifier() org.eclipse.core.runtime.registry.IExtension#getExtensionPointIdentifier()}
 	 */
 	public String getExtensionPointUniqueIdentifier();
-
 	/**
 	 * Returns a displayable label for this extension.
 	 * Returns the empty string if no label for this extension

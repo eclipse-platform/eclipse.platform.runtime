@@ -21,7 +21,6 @@ package org.eclipse.core.runtime;
  * <p>
  * This interface is not intended to be implemented by clients.
  * </p>
- * @deprecated replaced by {@link org.eclipse.core.runtime.registry.IConfigurationElement org.eclipse.core.runtime.registry.IConfigurationElement}.
  */
 public interface IConfigurationElement {
 	/**

@@ -9,7 +9,6 @@
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
 package org.eclipse.core.runtime;
-
 /**
  * The plug-in registry holds the master list of all
  * discovered plug-ins, extension points, and extensions.

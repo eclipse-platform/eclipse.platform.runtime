@@ -8,10 +8,12 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
-package org.eclipse.core.runtime.compatibility;
+package org.eclipse.core.internal.compatibility;
 
 import org.eclipse.core.internal.plugins.PluginDescriptor;
+import org.eclipse.core.internal.registry.Extension;
 import org.eclipse.core.internal.runtime.InternalPlatform;
+import org.eclipse.core.internal.runtime.Policy;
 import org.eclipse.core.runtime.*;
 import org.osgi.framework.*;
 
@@ -34,7 +36,7 @@ public class PluginActivator implements BundleActivator {
 
 		this.context = context;
 
-		PluginDescriptor pd = (PluginDescriptor) Platform.getPluginRegistry().getPluginDescriptor(context.getBundle().getGlobalName());
+		PluginDescriptor pd = (PluginDescriptor) Extension.getPluginDescriptor(context.getBundle().getGlobalName());
 		pd.setPluginActivator(this);
 		plugin = pd.getPlugin();
 		plugin.startup();
@@ -42,7 +44,7 @@ public class PluginActivator implements BundleActivator {
 	private void ensureNormalStartup(BundleContext context) throws BundleException {
 		Bundle applicationRunnerBundle = context.getBundle(PI_APPLICATION_RUNNER);
 		if (applicationRunnerBundle != null && (applicationRunnerBundle.getState() & (Bundle.ACTIVE | Bundle.STARTING)) == 0) {
-			IStatus status = new Status(IStatus.WARNING, IPlatform.PI_RUNTIME, 0, org.eclipse.core.internal.plugins.Policy.bind("activator.applicationNotStarted", context.getBundle().getGlobalName()), null); //$NON-NLS-1$
+			IStatus status = new Status(IStatus.WARNING, IPlatform.PI_RUNTIME, 0, Policy.bind("activator.applicationNotStarted", context.getBundle().getGlobalName()), null); //$NON-NLS-1$
 			InternalPlatform.getDefault().log(status);
 			throw new BundleException(status.getMessage());
 		}

@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.eclipse.core.runtime;
 
+import org.eclipse.core.runtime.PluginVersionIdentifier;
+
 /**
  * A prerequisite entry declared by a plug-in. The declaration causes
  * classes defined by the prerequisite plug-in to be visible

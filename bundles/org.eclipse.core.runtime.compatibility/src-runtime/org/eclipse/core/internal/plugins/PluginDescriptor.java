@@ -25,7 +25,7 @@ import org.eclipse.core.internal.runtime.*;
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.internal.runtime.Policy;
 import org.eclipse.core.runtime.*;
-import org.eclipse.core.runtime.compatibility.PluginActivator;
+import org.eclipse.core.internal.compatibility.PluginActivator;
 import org.osgi.framework.*;
 
 public class PluginDescriptor implements IPluginDescriptor {
@@ -125,29 +125,20 @@ public class PluginDescriptor implements IPluginDescriptor {
 	 * @see IPluginDescriptor
 	 */
 	public IExtensionPoint getExtensionPoint(String extensionPointId) {
-		org.eclipse.core.internal.registry.ExtensionPoint xpt = ((org.eclipse.core.internal.registry.ExtensionPoint) org.eclipse.core.internal.runtime.InternalPlatform.getDefault().getRegistry().getExtensionPoint(getId(), extensionPointId));
-		if (xpt == null)
-			return null;
-		return (IExtensionPoint) xpt.getAdapter(org.eclipse.core.internal.plugins.ExtensionPoint.class);
+		return InternalPlatform.getDefault().getRegistry().getExtensionPoint(getId(), extensionPointId);
 	}
 	/**
 	 * @see IPluginDescriptor
 	 */
 	public IExtensionPoint[] getExtensionPoints() {
-		org.eclipse.core.runtime.registry.IExtensionPoint[] xpts = org.eclipse.core.internal.runtime.InternalPlatform.getDefault().getRegistry().getExtensionPoints(getId());
-		if (xpts.length == 0)
-			return new IExtensionPoint[0];
-		return Utils.convertExtensionPoints(xpts);
+		return InternalPlatform.getDefault().getRegistry().getExtensionPoints(getId());
 	}
 
 	/**
 	 * @see IPluginDescriptor
 	 */
 	public IExtension[] getExtensions() {
-		org.eclipse.core.runtime.registry.IExtension[] exts = org.eclipse.core.internal.runtime.InternalPlatform.getDefault().getRegistry().getExtensions(getId());
-		if (exts.length == 0)
-			return new IExtension[0];
-		return Utils.convertExtensions(exts);
+		return org.eclipse.core.internal.runtime.InternalPlatform.getDefault().getRegistry().getExtensions(getId());
 	}
 
 	/**
@@ -162,7 +153,7 @@ public class PluginDescriptor implements IPluginDescriptor {
 	}
 	/**
 	 * @return a URL to the install location that does not need to be resolved.
-	 */
+	 */	
 	public URL getInstallURLInternal() {
 		try {
 			return InternalPlatform.getDefault().resolve(getInstallURL());
@@ -795,14 +786,14 @@ public class PluginDescriptor implements IPluginDescriptor {
 	/**
 	 * @param activator
 	 */
-	public void setPluginActivator(PluginActivator activator) {
+	public void setPluginActivator(PluginActivator activator){
 		this.activator = activator;
 	}
 
 	/**
 	 * @return
 	 */
-	public PluginActivator getActivator() {
+	public PluginActivator getPluginActivator() {
 		return activator;
 	}
 

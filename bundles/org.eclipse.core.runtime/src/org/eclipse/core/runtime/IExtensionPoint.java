@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.eclipse.core.runtime;
 
+import org.eclipse.core.runtime.IPluginDescriptor;
+
 /**
  * An extension point declared in a plug-in.
  * Except for the list of extensions plugged in to it, the information 
@@ -18,7 +20,6 @@ package org.eclipse.core.runtime;
  * <p>
  * This interface is not intended to be implemented by clients.
  * </p>
- * @deprecated Use {@link org.eclipse.core.runtime.registry.IExtensionPoint org.eclipse.core.runtime.registry.IExtensionPoint}
  */
 public interface IExtensionPoint {
 	/**
@@ -35,8 +36,13 @@ public interface IExtensionPoint {
 	 * Returns the descriptor of the plug-in that declares this extension point.
 	 *
 	 * @return the plug-in that declares this extension point
+	 * @deprecated {@link #getParentIdentifier() IExtensionPoint#getParentIdentifier()}
 	 */
 	public IPluginDescriptor getDeclaringPluginDescriptor();
+
+	//TODO Add JavaDoc
+	//TODO Add a method returning the long ?
+	public String getParentIdentifier();
 	/**
 	 * Returns the extension with the given unique identifier configured into
 	 * this extension point, or <code>null</code> if there is no such extension.

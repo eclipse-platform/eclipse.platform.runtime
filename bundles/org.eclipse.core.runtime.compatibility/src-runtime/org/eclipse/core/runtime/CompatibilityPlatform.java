@@ -8,22 +8,15 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
-package org.eclipse.core.internal.plugins.events;
+package org.eclipse.core.runtime;
 
-import org.eclipse.core.runtime.IPluginDescriptor;
-import org.eclipse.core.runtime.IPluginEvent;
+import java.net.URL;
+import org.eclipse.core.internal.plugins.InternalPlatform;
+import org.eclipse.core.runtime.model.Factory;
+import org.eclipse.core.runtime.model.PluginRegistryModel;
 
-public class PluginEvent implements IPluginEvent {
-	private IPluginDescriptor pluginDescriptor;
-	private int type;
-	PluginEvent(IPluginDescriptor pluginDescriptor, int type) {
-		this.pluginDescriptor = pluginDescriptor;
-		this.type = type;
-	}
-	public IPluginDescriptor getPluginDescriptor() {
-		return pluginDescriptor;
-	}
-	public int getType() {
-		return type;
+public class CompatibilityPlatform {
+	public static PluginRegistryModel parsePlugins(URL[] pluginPath, Factory factory) {
+		return InternalPlatform.parsePlugins(pluginPath, factory, false);
 	}
 }

@@ -11,14 +11,12 @@
 package org.eclipse.core.runtime;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Map;
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.runtime.jobs.IJobManager;
-import org.eclipse.core.runtime.model.Factory;
-import org.eclipse.core.runtime.model.PluginRegistryModel;
-import org.eclipse.core.runtime.registry.IExtensionRegistry;
-import org.osgi.framework.BundleContext;
+import org.osgi.framework.Bundle;
 
 /**
  * The central class of the Eclipse Platform Runtime. This class cannot
@@ -38,10 +36,6 @@ import org.osgi.framework.BundleContext;
  * be shutdown from inside (code in plug-ins have no access to
  * <code>BootLoader</code>).
  * </p>
- * @deprecated The platform object has been deprecated and is now provided as a service implementing
- * the {@link org.eclipse.core.runtime.IPlatform IPlatform} interface. If you get can acquire the IPlatform service, it 
- * means that eclipse is running. Note that the OSGi framework can be run without eclipse. 
- * For an in depth discussion of the new concepts please see the porting guide.
  */
 public final class Platform {
 	/**
@@ -50,7 +44,6 @@ public final class Platform {
 	 */
 	public static final String PI_RUNTIME = "org.eclipse.core.runtime"; //$NON-NLS-1$
 	public static final String PI_BOOT = "org.eclipse.core.boot"; //$NON-NLS-1$
-
 	/** 
 	 * The simple identifier constant (value "<code>applications</code>") of
 	 * the extension point of the Core Runtime plug-in where plug-ins declare
@@ -287,13 +280,6 @@ public final class Platform {
 	public static Map getAuthorizationInfo(URL serverUrl, String realm, String authScheme) {
 		return InternalPlatform.getDefault().getAuthorizationInfo(serverUrl, realm, authScheme);
 	}
-
-	static BundleContext getBundleContext() {
-		// TODO: Does this API need to be here?
-		// TODO: is it doing the right thing?
-		return null;
-	}
-
 	/**
 	 * Returns the command line args provided to the platform when it was first run.
 	 * Note that individual platform runnables may be provided with different arguments
@@ -352,6 +338,7 @@ public final class Platform {
 	 * @param id the unique identifier of the desired plug-in 
 	 *		(e.g., <code>"com.example.acme"</code>).
 	 * @return the plug-in runtime object, or <code>null</code>
+	 * @deprecated TODO
 	 */
 	public static Plugin getPlugin(String id) {
 		try {
@@ -371,9 +358,23 @@ public final class Platform {
 	 *
 	 * @return the plug-in registry
 	 * @see IPluginRegistry
+	 * @deprecated Use @link #getExtensionRegistry() getExtensionRegistry
 	 */
 	public static IPluginRegistry getPluginRegistry() {
-		return org.eclipse.core.internal.plugins.InternalPlatform.getPluginRegistry();
+		Bundle compatibility = org.eclipse.core.internal.runtime.InternalPlatform.getDefault().getBundle(IPlatform.PI_RUNTIME_COMPATIBILITY);
+		if (compatibility == null)
+			return null;
+		
+		Class oldInternalPlatform = null;
+		try {
+			oldInternalPlatform = compatibility.loadClass("org.eclipse.core.internal.plugins.InternalPlatform"); //$NON-NLS-1$
+			Method getPluginRegistry = oldInternalPlatform.getMethod("getPluginRegistry", null); //$NON-NLS-1$
+			return (IPluginRegistry) getPluginRegistry.invoke(oldInternalPlatform, null);
+		} catch (Exception e) {
+			//Ignore the exceptions, return false
+		}
+		return null;
+
 	}
 	/**
 	 * Returns the location in the local file system of the plug-in 
@@ -389,6 +390,7 @@ public final class Platform {
 	 *
 	 * @param plugin the plug-in whose state location is returned
 	 * @return a local file system path
+	 * @deprecated 
 	 */
 	public static IPath getPluginStateLocation(Plugin plugin) {
 		return plugin.getStateLocation();
@@ -404,40 +406,6 @@ public final class Platform {
 	 */
 	public static String getProtectionSpace(URL resourceUrl) {
 		return InternalPlatform.getDefault().getProtectionSpace(resourceUrl);
-	}
-	/**
-	 * Returns whether the platform runtime is based on OSGi.
-	 * @return <code>true</code> if the platform runtime is based on OSGi,
-	 * <code>false</code> otherwise
-	 * @deprecated this API is temporary and will be removed by the end of 
-	 * the Eclipse 3.0 cycle.
-	 * @since 3.0 
-	 */
-	public static boolean isRunningOSGi() {
-		return true;
-	}
-	/**
-	 * Returns a plug-in registry containing all of the plug-ins discovered
-	 * on the given plug-in path.  Any problems encountered are added to
-	 * the status managed by the supplied factory.
-	 * <p>
-	 * The given plug-in path is the list of locations in which to look for plug-ins.
-	 * If an entry identifies a directory (i.e., ends in a '/'), this method
-	 * attempts to scan all sub-directories for plug-ins.  Alternatively, an
-	 * entry may identify a particular plug-in manifest (<code>plugin.xml</code>) file.
-	 * </p>
-	 * <p>
-	 * <b>Note:</b> this method does not affect the running platform.  It is intended
-	 * for introspecting installed plug-ins on this and other platforms.  The returned
-	 * registry is <b>not</b> the same as the platform's registry.
-	 * </p>
-	 *
-	 * @param pluginPath the list of locations in which to look for plug-ins
-	 * @param factory the factory to use to create runtime model objects
-	 * @return the registry of parsed plug-ins
-	 */
-	public static PluginRegistryModel parsePlugins(URL[] pluginPath, Factory factory) {
-		return org.eclipse.core.internal.plugins.InternalPlatform.parsePlugins(pluginPath, factory);
 	}
 	/** 
 	 * Removes the indicated (identical) log listener from the notification list
@@ -483,53 +451,6 @@ public final class Platform {
 	 */
 	public static IJobManager getJobManager() {
 		return InternalPlatform.getDefault().getJobManager();
-	}
-
-	/** 
-	 * Adds the given listener for the specified plugin lifecycle change events 
-	 * to this platform.
-	 * Has no effect if an identical listener is already registered for these events.
-	 * <p>
-	 * Once registered, a listener starts receiving notification of changes to
-	 * plug-ins' lifecycle. Those events are all after-the-fact. The listener continues 
-	 * to receive notifications until is removed. 
-	 * </p>
-	 * 
-	 * @param listener the listener to add
-	 * @see IPluginListener
-	 * @see IPluginEvent
-	 * @see #removePluginListener(IPluginListener)
-	 * @since 3.0
-	 */
-	public static void addPluginListener(IPluginListener listener) {
-		org.eclipse.core.internal.plugins.InternalPlatform.addPluginListener(listener);
-	}
-	/** 
-	 * Removes the given plugiin listener from the platform.
-	 * Has no effect if an identical listener is not registered.
-	 *
-	 * @param listener the listener to remove
-	 * @see IPluginListener
-	 * @see #addPluginListener(IPluginListener)
-	 * @since 3.0
-	 */
-	public static void removePluginListener(IPluginListener listener) {
-		org.eclipse.core.internal.plugins.InternalPlatform.removePluginListener(listener);
-	}
-
-	/**
-	 * Installs any plug-ins and fragments found in the given URLs.
-	 * 
-	 * @param installURLs the URL for each plug-in/fragment to be installed 
-	 * @throws CoreException if the operation failed. Reasons include:
-	 * <ul>
-	 * <li>There are missing elements in a plug-in/fragment manifest.</li>
-	 * <li>A plug-in cannot be resolved due to a missing prerequisite.</li>
-	 * </ul>
-	 * @since 3.0
-	 */
-	public static void installPlugins(URL[] installURLs) throws CoreException {
-		org.eclipse.core.internal.plugins.InternalPlatform.installPlugins(installURLs);
 	}
 	/**
 	 * Returns the extension registry for this platform.
