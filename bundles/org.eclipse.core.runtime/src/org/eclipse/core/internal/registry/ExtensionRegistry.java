@@ -609,8 +609,6 @@ public class ExtensionRegistry implements IExtensionRegistry {
 		registryObjects = new RegistryObjectManager();
 		if (!"true".equals(System.getProperty(InternalPlatform.PROP_NO_REGISTRY_CACHE))) { //$NON-NLS-1$
 			// Try to read the registry from the cache first. If that fails, create a new registry
-			MultiStatus problems = new MultiStatus(Platform.PI_RUNTIME, ExtensionsParser.PARSE_PROBLEM, "Registry cache problems", null); //$NON-NLS-1$
-
 			long start = 0;
 			if (InternalPlatform.DEBUG)
 				start = System.currentTimeMillis();
