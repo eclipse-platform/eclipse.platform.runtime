@@ -1799,7 +1799,17 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		
 		// parse xerces plugin.xml
 		// -> get its <library> entries ... all of them	
-	}	
+	}
+	
+	private File locateBootPluginXML(String path) {
+		// starting path is the boot load location (jar or directory)
+		// -> trip off .jar
+		
+		// recursively try to get <dir>/plugin.xml, until we have no parent
+		// -> terminal error if not found
+
+		return null;
+	}
 	
 	private void write(PrintWriter w) {
 		// write header
@@ -2095,6 +2105,13 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			URL siteURL = null;
 			try {
 				siteURL = new URL(sitePortion);
+				if (siteURL.getProtocol().equals("file")) {
+					File sf = new File(siteURL.getFile());
+					String sfn = sf.getAbsolutePath().replace(File.separatorChar,'/');
+					if (!sfn.endsWith("/"))
+						sfn += "/";
+					siteURL = new URL("file:"+sfn);					
+				}
 			} catch (MalformedURLException e) {
 				continue; // bad entry ... skip it
 			}
