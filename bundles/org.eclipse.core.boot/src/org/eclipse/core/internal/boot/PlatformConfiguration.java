@@ -109,7 +109,8 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	
 	public class SiteEntry implements IPlatformConfiguration.ISiteEntry {
 
-		private URL url;
+		private URL url; // this is the external URL for the site
+		private URL resolvedURL; // this is the resolved URL used internally
 		private ISitePolicy policy;
 		private boolean updateable = true;
 		private ArrayList features;
@@ -143,6 +144,13 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			this.parent = parent;
 			this.features = null;
 			this.plugins = null;
+			this.resolvedURL = this.url;
+			if (url.getProtocol().equals(PlatformURLHandler.PROTOCOL)) {
+				try {
+					resolvedURL = ((PlatformURLConnection)url.openConnection()).getResolvedURL();
+				} catch(IOException e) {
+				}
+			}
 		}
 
 		/*
@@ -244,7 +252,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			
 			features = new ArrayList();
 				
-			if (!supportsDetection(url))
+			if (!supportsDetection(resolvedURL))
 				return new String[0];
 
 			// locate feature entries on site
@@ -252,7 +260,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			if (DEBUG)
 				start = (new Date()).getTime();
 			File root =
-				new File(url.getFile().replace('/', File.separatorChar) + FEATURES);
+				new File(resolvedURL.getFile().replace('/', File.separatorChar) + FEATURES);
 			String[] list = root.list();
 			String path;
 			File plugin;
@@ -266,7 +274,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			}
 			if (DEBUG) {
 				long end = (new Date()).getTime();
-				debug(url.toString()+" located  "+features.size()+" feature(s) in "+(end-start)+"ms");
+				debug(resolvedURL.toString()+" located  "+features.size()+" feature(s) in "+(end-start)+"ms");
 			}				
 				
 			return (String[])features.toArray(new String[0]);
@@ -282,7 +290,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			
 			plugins = new ArrayList();
 			
-			if (!supportsDetection(url))
+			if (!supportsDetection(resolvedURL))
 				return new String[0];
 								
 			// locate plugin entries on site
@@ -290,7 +298,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			if (DEBUG)
 				start = (new Date()).getTime();
 			File root =
-				new File(url.getFile().replace('/', File.separatorChar) + PLUGINS);
+				new File(resolvedURL.getFile().replace('/', File.separatorChar) + PLUGINS);
 			String[] list = root.list();
 			String path;
 			File plugin;
@@ -307,7 +315,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			}
 			if (DEBUG) {
 				long end = (new Date()).getTime();
-				debug(url.toString()+" located  "+plugins.size()+" plugin(s) in "+(end-start)+"ms");
+				debug(resolvedURL.toString()+" located  "+plugins.size()+" plugin(s) in "+(end-start)+"ms");
 			}								
 				
 			return (String[])plugins.toArray(new String[0]);
@@ -327,10 +335,14 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 				return (String[])plugins.toArray(new String[0]);
 		}
 		
+		private URL getResolvedURL() {
+			return resolvedURL;
+		}
+		
 		private void computeChangeStamp() {
 			computeFeaturesChangeStamp();
 			computePluginsChangeStamp();
-			changeStamp = url.hashCode() ^ featuresChangeStamp ^ pluginsChangeStamp;
+			changeStamp = resolvedURL.hashCode() ^ featuresChangeStamp ^ pluginsChangeStamp;
 			changeStampIsValid = true;
 		}
 		
@@ -342,7 +354,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			featuresChangeStamp = computeStamp(features);
 			featuresChangeStampIsValid = true;
 			if (DEBUG) 
-				debug(url.toString()+" feature stamp: "+featuresChangeStamp+((featuresChangeStamp==lastFeaturesChangeStamp)?" [no changes]":" [was "+lastFeaturesChangeStamp+"]"));
+				debug(resolvedURL.toString()+" feature stamp: "+featuresChangeStamp+((featuresChangeStamp==lastFeaturesChangeStamp)?" [no changes]":" [was "+lastFeaturesChangeStamp+"]"));
 		}
 		
 		private void computePluginsChangeStamp() {
@@ -353,13 +365,13 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			pluginsChangeStamp = computeStamp(plugins);
 			pluginsChangeStampIsValid = true;
 			if (DEBUG) 
-				debug(url.toString()+" plugin stamp: "+pluginsChangeStamp+((pluginsChangeStamp==lastPluginsChangeStamp)?" [no changes]":" [was "+lastPluginsChangeStamp+"]"));
+				debug(resolvedURL.toString()+" plugin stamp: "+pluginsChangeStamp+((pluginsChangeStamp==lastPluginsChangeStamp)?" [no changes]":" [was "+lastPluginsChangeStamp+"]"));
 		}
 		
 		private long computeStamp(String[] targets) {
 			
 			long result = 0;
-			if (!supportsDetection(url)) {
+			if (!supportsDetection(resolvedURL)) {
 				// FIXME: this path should not be executed until we support running
 				//        from an arbitrary URL (in particular from http server). For
 				//        now just compute stamp across the list of names. Eventually
@@ -368,10 +380,12 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 				//        code executes early on the startup sequence we need to be
 				//        extremely mindful of performance issues.
 				for (int i=0; i<targets.length; i++)
-					result ^= targets[i].hashCode();				
+					result ^= targets[i].hashCode();
+				if (DEBUG)
+					debug("*WARNING* computing stamp using URL hashcodes only");				
 			} else {
 				// compute stamp across local targets		
-				String rootPath = url.getFile().replace('/',File.separatorChar);
+				String rootPath = resolvedURL.getFile().replace('/',File.separatorChar);
 				if (rootPath.endsWith(File.separator))
 					rootPath += File.separator;
 				File rootFile = new File(rootPath);
@@ -750,7 +764,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			String[] plugins = sites[i].getPlugins();
 			for (int j=0; j<plugins.length; j++) {
 				try {
-					pathURL = new URL(sites[i].getURL(),plugins[j]);
+					pathURL = new URL(((SiteEntry)sites[i]).getResolvedURL(),plugins[j]);
 					path.add(pathURL);
 					if (DEBUG)
 						debug("   "+pathURL.toString());
@@ -761,7 +775,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 			}
 			// add fragments entry for each site for 1.0 compatibility
 			try {
-				pathURL = new URL(sites[i].getURL(),"fragments/");
+				pathURL = new URL(((SiteEntry)sites[i]).getResolvedURL(),"fragments/");
 				path.add(pathURL);
 				if (DEBUG)
 					debug("   "+pathURL.toString());
@@ -932,18 +946,7 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		// create current configuration
 		if (currentPlatformConfiguration == null)
 			currentPlatformConfiguration = new PlatformConfiguration(cmdConfiguration);
-		
-		// determine current feature
-		// * -feature
-		// * from configuration
-		//
-		// determine current application
-		// * -application/ r10app
-		// * -feature -> its application
-		// * default from configuration
-		// * eclipse workbench
-		//
-		
+				
 		return passthruArgs;
 	}
 		
@@ -1037,7 +1040,13 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 		// for the default case) 
 		
 		ISitePolicy defaultPolicy = createSitePolicy(DEFAULT_POLICY_TYPE, DEFAULT_POLICY_LIST);
-		ISiteEntry defaultSite = createSiteEntry(BootLoader.getInstallURL(), defaultPolicy);
+		URL siteURL = null;
+		try {
+			siteURL = new URL(PlatformURLBaseConnection.PLATFORM_URL_STRING); // try using platform-relative URL
+		} catch (MalformedURLException e) {
+			siteURL = BootLoader.getInstallURL(); // ensure we come up ... use absolute file URL
+		}
+		ISiteEntry defaultSite = createSiteEntry(siteURL, defaultPolicy);
 		configureSite(defaultSite);
 		configLocation = commonURL;
 		if (DEBUG)
@@ -1707,7 +1716,19 @@ public class PlatformConfiguration implements IPlatformConfiguration {
 	}
 	
 	private static boolean supportsDetection(URL url) {
-		return url.getProtocol().equals("file");
+		String protocol = url.getProtocol();
+		if (protocol.equals("file"))
+			return true;
+		else if (protocol.equals(PlatformURLHandler.PROTOCOL)) {
+			URL resolved = null;
+			try {
+				resolved = ((PlatformURLConnection)url.openConnection()).getResolvedURL();
+			} catch(IOException e) {
+				return false; // we tried but failed to resolve the platform URL
+			}
+			return resolved.getProtocol().equals("file");
+		} else
+			return false;
 	}
 
 	private static void debug(String s) {

@@ -524,12 +524,12 @@ private static String[] initialize(URL pluginPathLocation/*R1.0 compatibility*/,
 	// load any debug options
 	loadOptions();
 
-	// load platform configuration and consume configuration-related arguments
-	appArgs = PlatformConfiguration.startup(appArgs, pluginPathLocation/*R1.0 compatibility*/, applicationR10/*R1.0 compatibility*/);
-
 	// initialize eclipse URL handling
 	PlatformURLHandlerFactory.startup(baseLocation + File.separator + META_AREA);
 	PlatformURLBaseConnection.startup(getInstallURL()); // past this point we can use eclipse:/platform/ URLs
+
+	// load platform configuration and consume configuration-related arguments (must call after URL handler initialization)
+	appArgs = PlatformConfiguration.startup(appArgs, pluginPathLocation/*R1.0 compatibility*/, applicationR10/*R1.0 compatibility*/);
 
 	// create and configure platform class loader
 	loader = configurePlatformLoader();
