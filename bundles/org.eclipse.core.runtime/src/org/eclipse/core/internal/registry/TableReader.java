@@ -228,7 +228,7 @@ public class TableReader {
 	public Object loadExtension(int offset) {
 		try {
 			goToInputFile(offset);
-			return basicLoadExtension();
+			return basicLoadExtension(input);
 		} catch (IOException e) {
 			InternalPlatform.getDefault().log(new Status(IStatus.ERROR, Platform.PI_RUNTIME, fileError, "Error reading an extension (" + offset + ") from the registry cache", e));
 		}
@@ -239,8 +239,8 @@ public class TableReader {
 		return InternalPlatform.getDefault().getBundleContext().getBundle(id);
 	}
 
-	private Extension basicLoadExtension() throws IOException {
-		int self = input.readInt();
+	private Extension basicLoadExtension(DataInputStream inputStream) throws IOException {
+		int self = inputStream.readInt();
 		String simpleId = readStringOrNull(input, false);
 		String namespace = readStringOrNull(input, false);
 		int[] children = readArray(input);
@@ -254,7 +254,7 @@ public class TableReader {
 			int[] children = xpt.getRawChildren();
 			int nbrOfExtension = children.length;
 			for (int i = 0; i < nbrOfExtension; i++) {
-				Extension loaded = basicLoadExtension();
+				Extension loaded = basicLoadExtension(input);
 				objects.add(loaded, false);
 			}
 
@@ -389,7 +389,7 @@ public class TableReader {
 			int[] children = xpt.getRawChildren();
 			int nbrOfExtension = children.length;
 			for (int i = 0; i < nbrOfExtension; i++) {
-				Extension loaded = basicLoadExtension();
+				Extension loaded = basicLoadExtension(input);
 				tmp = basicLoadExtensionExtraData();
 				loaded.setLabel(tmp[0]);
 				loaded.setExtensionPointIdentifier(tmp[1]);

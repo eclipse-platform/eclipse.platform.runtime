@@ -93,10 +93,10 @@ public class TableWriter {
 		for (int i = 0; i < points.length; i++) {
 			saveExtensionPoint(points[i]);
 		}
+		saveOrphans(objectManager);
 		saveTables(objectManager, timestamp);
 
 		saveNamespaces(objectManager.newContributions);
-		saveOrphans((HashMap) objectManager.orphanExtensions);
 	}
 
 	private void saveNamespaces(KeyedHashSet newNamespaces) throws IOException {
@@ -151,16 +151,16 @@ public class TableWriter {
 		mainOutput.writeInt(getExtraDataPosition());
 		saveExtensionPointData(xpt);
 
-		saveExtensions(xpt.getExtensions());
+		saveExtensions(xpt.getExtensions(), mainOutput);
 	}
 
-	private void saveExtension(ExtensionHandle ext) throws IOException {
-		offsets.put(ext.getId(), mainOutput.size());
-		mainOutput.writeInt(ext.getId());
-		writeStringOrNull(ext.getSimpleIdentifier(), mainOutput);
-		writeStringOrNull(ext.getNamespace(), mainOutput);
-		saveArray(ext.getObject().getRawChildren(), mainOutput);
-		mainOutput.writeInt(getExtraDataPosition());
+	private void saveExtension(ExtensionHandle ext, DataOutputStream outputStream) throws IOException {
+		offsets.put(ext.getId(), outputStream.size());
+		outputStream.writeInt(ext.getId());
+		writeStringOrNull(ext.getSimpleIdentifier(), outputStream);
+		writeStringOrNull(ext.getNamespace(), outputStream);
+		saveArray(ext.getObject().getRawChildren(), outputStream);
+		outputStream.writeInt(getExtraDataPosition());
 		saveExtensionData(ext);
 	}
 
@@ -197,16 +197,16 @@ public class TableWriter {
 
 	}
 
-	private void saveExtensions(IExtension[] exts) throws IOException {
+	private void saveExtensions(IExtension[] exts, DataOutputStream outputStream) throws IOException {
 		for (int i = 0; i < exts.length; i++) {
-			saveExtension((ExtensionHandle) exts[i]);
+			saveExtension((ExtensionHandle) exts[i], outputStream);
 		}
 
 		for (int i = 0; i < exts.length; i++) {
 			IConfigurationElement[] ces = exts[i].getConfigurationElements();
-			mainOutput.writeInt(ces.length); //this is not mandatory
+			outputStream.writeInt(ces.length); //this is not mandatory
 			for (int j = 0; j < ces.length; j++) {
-				saveConfigurationElement((ConfigurationElementHandle) ces[j], mainOutput, extraOutput, 1);
+				saveConfigurationElement((ConfigurationElementHandle) ces[j], outputStream, extraOutput, 1);
 			}
 		}
 	}
@@ -233,7 +233,8 @@ public class TableWriter {
 		}
 	}
 
-	private void saveOrphans(HashMap orphans) throws IOException {
+	private void saveOrphans(RegistryObjectManager objectManager) throws IOException {
+		HashMap orphans = (HashMap) objectManager.orphanExtensions;
 		DataOutputStream outputOrphan = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(orphansFile)));
 		outputOrphan.writeInt(orphans.size());
 		Set elements = orphans.entrySet();
@@ -241,6 +242,10 @@ public class TableWriter {
 			Map.Entry entry = (Map.Entry) iter.next();
 			outputOrphan.writeUTF((String) entry.getKey());
 			saveArray((int[]) entry.getValue(), outputOrphan);
+		}
+		for (Iterator iter = elements.iterator(); iter.hasNext();) {
+			Map.Entry entry = (Map.Entry) iter.next();
+			saveExtensions((IExtension[]) objectManager.getHandles((int[]) entry.getValue(), RegistryObjectManager.EXTENSION), mainOutput);
 		}
 		outputOrphan.close();
 	}
