@@ -20,6 +20,8 @@ import org.eclipse.core.runtime.*;
  * Tests that use the Eclipse Platform workspace.
  */
 public class EclipseWorkspaceTest extends TestCase {
+	public static final String PI_HARNESS = "org.eclipse.core.tests.harness"; //$NON-NLS-1$	
+
 	//constants for nature sets	
 	protected static final String SET_STATE = "org.eclipse.core.tests.resources.stateSet";
 	protected static final String SET_OTHER = "org.eclipse.core.tests.resources.otherSet";
@@ -62,7 +64,7 @@ public class EclipseWorkspaceTest extends TestCase {
 	 */
 	public static void log(String message) {
 		String id = "org.eclipse.core.tests.harness/debug";
-		String option= Platform.getDebugOption(id);
+		String option = Platform.getDebugOption(id);
 		if (Boolean.TRUE.toString().equalsIgnoreCase(option))
 			System.out.println(message);
 	}
@@ -984,4 +986,13 @@ public class EclipseWorkspaceTest extends TestCase {
 			//ignore
 		}
 	}
+
+	public static void log(IStatus status) {
+		Platform.getLog(Platform.getBundle(PI_HARNESS)).log(status);
+	}
+
+	public static void log(Throwable e) {
+		log(new Status(IStatus.ERROR, PI_HARNESS, IStatus.ERROR, "Error", e)); //$NON-NLS-1$
+	}
+
 }
