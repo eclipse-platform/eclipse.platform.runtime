@@ -35,7 +35,7 @@ public class CoreTest extends TestCase {
 	}
 
 	public static void log(String pluginID, IStatus status) {
-		Platform.getLog(Platform.getBundle(pluginID)).log(status);
+		Platform.getPlugin(pluginID).getLog().log(status);
 	}
 
 	public static void log(String pluginID, Throwable e) {
