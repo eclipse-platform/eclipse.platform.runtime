@@ -167,7 +167,7 @@ public class ExtensionRegistry implements IExtensionRegistry {
 
 	private RegistryObjectManager registryObjects;
 
-	public RegistryObjectManager getObjectManager() {
+	RegistryObjectManager getObjectManager() {
 		Handle.objectManager = registryObjects;
 		return registryObjects;
 	}
