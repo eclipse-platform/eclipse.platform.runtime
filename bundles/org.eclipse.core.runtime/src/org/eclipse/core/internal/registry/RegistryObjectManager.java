@@ -139,7 +139,7 @@ public class RegistryObjectManager {
 	}
 
 	private void remove(NestedRegistryModelObject registryObject, boolean release) {
-		cache.remove(registryObject);
+		cache.remove(new Integer(registryObject.getObjectId()));
 		if (release)
 			release(registryObject);
 	}
