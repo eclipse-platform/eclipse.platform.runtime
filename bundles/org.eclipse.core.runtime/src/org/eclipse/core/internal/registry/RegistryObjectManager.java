@@ -466,7 +466,7 @@ public class RegistryObjectManager implements IObjectManager {
 	 * deltas but not from the registry.
 	 */
 	synchronized Map getAssociatedObjects(long contributionId) {
-		//Collect all the objects that must be removed
+		//Collect all the objects associated with this contribution
 		int[] xpts = getExtensionPointsFrom(contributionId);
 		int[] exts = getExtensionsFrom(contributionId);
 		Map actualObjects = new HashMap(xpts.length + exts.length);
@@ -474,10 +474,6 @@ public class RegistryObjectManager implements IObjectManager {
 			Extension tmp = (Extension) basicGetObject(exts[i], RegistryObjectManager.EXTENSION);
 			actualObjects.put(new Integer(exts[i]), tmp);
 			collectChildren(tmp, actualObjects);
-			ConfigurationElement[] ces = (ConfigurationElement[]) getObjects(tmp.getRawChildren(), RegistryObjectManager.CONFIGURATION_ELEMENT);
-			for (int j = 0; j < ces.length; j++) {
-				actualObjects.put(new Integer(ces[j].getObjectId()), ces[j]);
-			}
 		}
 		for (int i = 0; i < xpts.length; i++) {
 			ExtensionPoint xpt = (ExtensionPoint) basicGetObject(xpts[i], RegistryObjectManager.EXTENSION_POINT);
