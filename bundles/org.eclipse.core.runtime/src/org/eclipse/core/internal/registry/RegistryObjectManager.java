@@ -12,6 +12,7 @@ package org.eclipse.core.internal.registry;
 
 import java.lang.ref.SoftReference;
 import java.util.*;
+
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.internal.runtime.Policy;
 
@@ -457,136 +458,44 @@ public class RegistryObjectManager implements IObjectManager {
 		return new KeyedHashSet[] {newContributions, getFormerContributions()};
 	}
 
+	/**
+	 * Collect all the objects that are removed by this operation and store
+	 * them in a IObjectManager so that they can be accessed from the appropriate
+	 * deltas but not from the registry.
+	 */
 	synchronized IObjectManager getRemovedObjects(long contributionId) {
+		//Collect all the objects that must be removed
 		int[] xpts = getExtensionPointsFrom(contributionId);
 		int[] exts = getExtensionsFrom(contributionId);
 		Map actualObjects = new HashMap(xpts.length + exts.length);
 		for (int i = 0; i < exts.length; i++) {
-			actualObjects.put(new Integer(exts[i]), basicGetObject(exts[i], RegistryObjectManager.EXTENSION));
-//			int offsetRemoved = fileOffsets.removeKey(exts[i]);
-//			if (offsetRemoved != Integer.MIN_VALUE)
-//				actualObjects.put(exts[i], offsetRemoved);
+			Extension tmp = (Extension) basicGetObject(exts[i], RegistryObjectManager.EXTENSION);
+			actualObjects.put(new Integer(exts[i]), tmp);
+			collectChildren(tmp, actualObjects);
+			ConfigurationElement[] ces = (ConfigurationElement[]) getObjects(tmp.getRawChildren(), RegistryObjectManager.CONFIGURATION_ELEMENT);
+			for (int j = 0; j < ces.length; j++) {
+				actualObjects.put(new Integer(ces[j].getObjectId()), ces[j]);
+			}
 		}
 		for (int i = 0; i < xpts.length; i++) {
-			actualObjects.put(new Integer(xpts[i]), basicGetObject(xpts[i], RegistryObjectManager.EXTENSION_POINT));
+			ExtensionPoint xpt = (ExtensionPoint) basicGetObject(xpts[i], RegistryObjectManager.EXTENSION_POINT);
+			actualObjects.put(new Integer(xpts[i]), xpt);
+			removeExtensionPoint(xpt.getUniqueIdentifier());
+		}
+		
+		//Remove the objects from the main object manager so they can no longer be accessed.
+		Collection allValues = actualObjects.values();
+		for (Iterator iter = allValues.iterator(); iter.hasNext();) {
+			remove(((RegistryObject) iter.next()).getObjectId(), true);
 		}
 		return new TemporaryObjectManager(actualObjects, this);
-		//TODO Here we need to remove from the extension point table as well.
-		//We need to remove from the object table also
 	}
 
-	private static class TemporaryObjectManager implements IObjectManager {
-		Map actualObjects;
-		RegistryObjectManager parent;
-		
-		public TemporaryObjectManager(Map actualObjects, RegistryObjectManager parent) {
-			this.actualObjects = actualObjects;
-			this.parent = parent;
+	private void collectChildren(RegistryObject ce, Map collector) {
+		ConfigurationElement[] children = (ConfigurationElement[]) getObjects(ce.getRawChildren(), ce.extraDataOffset == -1 ? RegistryObjectManager.CONFIGURATION_ELEMENT : RegistryObjectManager.THIRDLEVEL_CONFIGURATION_ELEMENT);
+		for (int j = 0; j < children.length; j++) {
+			collector.put(new Integer(children[j].getObjectId()), children[j]);
+			collectChildren(children[j], collector);
 		}
-
-		public Handle getHandle(int id, byte type) {
-			switch (type) {
-				case EXTENSION_POINT :
-					return new ExtensionPointHandle(this, id);
-
-				case EXTENSION :
-					return new ExtensionHandle(this, id);
-
-				case CONFIGURATION_ELEMENT :
-					return new ConfigurationElementHandle(this, id);
-
-				case THIRDLEVEL_CONFIGURATION_ELEMENT :
-				default : //avoid compiler error, type should always be known
-					return new ThirdLevelConfigurationElementHandle(this, id);
-			}
-		}
-
-		public Handle[] getHandles(int[] ids, byte type) {
-			Handle[] results = null;
-			int nbrId = ids.length;
-			switch (type) {
-				case EXTENSION_POINT :
-					if (nbrId == 0)
-						return ExtensionPointHandle.EMPTY_ARRAY;
-					results = new ExtensionPointHandle[nbrId];
-					for (int i = 0; i < nbrId; i++) {
-						results[i] = new ExtensionPointHandle(this, ids[i]);
-					}
-					break;
-
-				case EXTENSION :
-					if (nbrId == 0)
-						return ExtensionHandle.EMPTY_ARRAY;
-					results = new ExtensionHandle[nbrId];
-					for (int i = 0; i < nbrId; i++) {
-						results[i] = new ExtensionHandle(this, ids[i]);
-					}
-					break;
-
-				case CONFIGURATION_ELEMENT :
-					if (nbrId == 0)
-						return ConfigurationElementHandle.EMPTY_ARRAY;
-					results = new ConfigurationElementHandle[nbrId];
-					for (int i = 0; i < nbrId; i++) {
-						results[i] = new ConfigurationElementHandle(this, ids[i]);
-					}
-					break;
-
-				case THIRDLEVEL_CONFIGURATION_ELEMENT :
-					if (nbrId == 0)
-						return ConfigurationElementHandle.EMPTY_ARRAY;
-					results = new ThirdLevelConfigurationElementHandle[nbrId];
-					for (int i = 0; i < nbrId; i++) {
-						results[i] = new ThirdLevelConfigurationElementHandle(this, ids[i]);
-					}
-					break;
-			}
-			return results;
-		}
-
-		public Object getObject(int id, byte type) {
-			try {
-				return  parent.getObject(id, type);
-			} catch(InvalidHandleException e) {
-				return actualObjects.get(new Integer(id));
-			}
-		}
-
-		public RegistryObject[] getObjects(int[] values, byte type) {
-			if (values.length == 0) {
-				switch (type) {
-					case EXTENSION_POINT :
-						return ExtensionPoint.EMPTY_ARRAY;
-					case EXTENSION :
-						return Extension.EMPTY_ARRAY;
-					case CONFIGURATION_ELEMENT :
-					case THIRDLEVEL_CONFIGURATION_ELEMENT :
-						return ConfigurationElement.EMPTY_ARRAY;
-				}
-			}
-
-			RegistryObject[] results = null;
-			switch (type) {
-				case EXTENSION_POINT :
-					results = new ExtensionPoint[values.length];
-					break;
-				case EXTENSION :
-					results = new Extension[values.length];
-					break;
-				case CONFIGURATION_ELEMENT :
-				case THIRDLEVEL_CONFIGURATION_ELEMENT :
-					results = new ConfigurationElement[values.length];
-					break;
-			}
-			for (int i = 0; i < values.length; i++) {
-				try {
-				results[i] = (RegistryObject) parent.getObject(values[i], type);
-				} catch(InvalidHandleException e) {
-					results[i] = (RegistryObject) actualObjects.get(new Integer(values[i]));
-				}
-			}
-			return results;
-		}
-
 	}
 }

@@ -14,13 +14,12 @@ import java.util.*;
 import org.eclipse.core.runtime.IExtension;
 import org.eclipse.core.runtime.IExtensionDelta;
 
-/*
- * Basic implementation for now...
- * Aggregates extension deltas related to extension points declared by a specific host.
+/**
+ * The extension deltas are grouped by namespace. There is one registry delta by namespace.
  */
 public class RegistryDelta {
-	private Set extensionDeltas = new HashSet();
-	private IObjectManager objectManager;
+	private Set extensionDeltas = new HashSet(); //the extension deltas (each element indicate the type of the delta)
+	private IObjectManager objectManager;	//The object manager from which all the objects contained in the deltas will be found.
 	
 	RegistryDelta() {
 		//Nothing to do
@@ -69,7 +68,7 @@ public class RegistryDelta {
 
 	void setObjectManager(IObjectManager objectManager) {
 		this.objectManager = objectManager;
-		//TODO May want to add things here.. 
+		//TODO May want to add into the existing one here... if it is possible to have batching 
 	}
 	
 	IObjectManager getObjectManager() {

@@ -89,7 +89,7 @@ public class EclipseBundleListener implements SynchronousBundleListener {
 	}
 
 	private void removeBundle(Bundle bundle) {
-		registry.remove(bundle);		
+		registry.remove(bundle.getBundleId());		
 	}
 
 	private void addBundle(Bundle bundle) {
