@@ -13,7 +13,6 @@ package org.eclipse.core.tests.runtime.perf;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Random;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import org.eclipse.core.internal.content.ContentType;
@@ -233,7 +232,7 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 						return;
 				fail("2.2");
 			}
-		}.run(this, 10, 1);
+		}.run(this, 10, 100);
 	}
 
 	public void testDoSetUp() {
@@ -302,6 +301,6 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 				// and it is supposed to be the first one (since it is at the root)
 				assertEquals("2.1", IContentTypeManager.CT_TEXT, associated[0].getId());
 			}
-		}.run(this, 10, 20000);
+		}.run(this, 10, 200000);
 	}
 }
