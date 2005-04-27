@@ -34,6 +34,7 @@ import org.osgi.framework.BundleException;
 public class ContentTypePerformanceTest extends RuntimeTest {
 
 	private final static String CONTENT_TYPE_PREF_NODE = Platform.PI_RUNTIME + IPath.SEPARATOR + "content-types"; //$NON-NLS-1$	
+	private static final String DEFAULT_NAME = "file_" + ContentTypePerformanceTest.class.getName();
 	private static final int ELEMENTS_PER_LEVEL = 2;
 	private static final int NUMBER_OF_LEVELS = 10;
 	private static final int NUMBER_OF_ELEMENTS = computeTotalTypes(NUMBER_OF_LEVELS, ELEMENTS_PER_LEVEL);
@@ -42,7 +43,7 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 
 	private static int computeTotalTypes(int levels, int elementsPerLevel) {
 		double sum = 0;
-		for (int i = 1; i <= levels; i++)
+		for (int i = 0; i <= levels; i++)
 			sum += Math.pow(elementsPerLevel, i);
 		return (int) sum;
 	}
@@ -79,14 +80,19 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 		if (numberOfLevels == 0)
 			return 0;
 		int local = nodesPerLevel;
-		for (int i = 1; i < nodesPerLevel + 1; i++) {
-			String id = "performance" + (created + i);
-			String definition = createContentType(id, baseTypeId, null, baseTypeId == null ? new String[] {id} : null, NaySayerContentDescriber.class.getName());
-			writer.write(definition);
-			writer.write(System.getProperty("line.separator"));
+		for (int i = 0; i < nodesPerLevel; i++) {
+			String id = generateContentType(writer, created + i, baseTypeId);
 			local += createContentTypes(writer, id, created + local, numberOfLevels - 1, nodesPerLevel);
 		}
 		return local;
+	}
+
+	private static String generateContentType(Writer writer, int number, String baseTypeId) throws IOException {
+		String id = "performance" + number;
+		String definition = createContentType(id, baseTypeId, number > 0 ? null : new String[] {DEFAULT_NAME}, null, NaySayerContentDescriber.class.getName());
+		writer.write(definition);
+		writer.write(System.getProperty("line.separator"));
+		return id;
 	}
 
 	private static String getContentTypeId(int i) {
@@ -96,12 +102,18 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 	public static Test suite() {
 		TestSuite suite = new TestSuite(ContentTypePerformanceTest.class.getName());
 
-		SessionTestSuite setUp = new SessionTestSuite(PI_RUNTIME_TESTS, "testDoSetUp");
+//		suite.addTest(new ContentTypePerformanceTest("testDoSetUp"));
+//		suite.addTest(new ContentTypePerformanceTest("testIsKindOf"));
+//		suite.addTest(new ContentTypePerformanceTest("testDoTearDown"));
+
+				SessionTestSuite setUp = new SessionTestSuite(PI_RUNTIME_TESTS, "testDoSetUp");
 		setUp.addTest(new ContentTypePerformanceTest("testDoSetUp"));
 		suite.addTest(setUp);
 
 		TestSuite singleRun = new PerformanceSessionTestSuite(PI_RUNTIME_TESTS, 1, "singleSessionTests");
 		singleRun.addTest(new ContentTypePerformanceTest("testContentMatching"));
+		singleRun.addTest(new ContentTypePerformanceTest("testContentTXTMatching"));
+		singleRun.addTest(new ContentTypePerformanceTest("testContentXMLMatching"));
 		singleRun.addTest(new ContentTypePerformanceTest("testNameMatching"));
 		singleRun.addTest(new ContentTypePerformanceTest("testIsKindOf"));
 		suite.addTest(singleRun);
@@ -141,7 +153,25 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 		return count;
 	}
 
-	private Bundle installContentTypes(String tag, int numberOfLevels, int nodesPerLevel) {
+	/** Tests how much the size of the catalog affects the performance of content type matching by content analysis and name*/
+	public void doTestContentMatching(final String name, final String contents, int outer, int inner) {
+		// warm up preference service		
+		loadPreferences();
+		// warm up content type registry
+		final IContentTypeManager manager = loadContentTypeManager();
+		loadDescribers();
+		new PerformanceTestRunner() {
+			protected void test() {
+				try {
+					manager.findContentTypesFor(getContents(contents), name);
+				} catch (IOException e) {
+					fail("2.0", e);
+				}
+			}
+		}.run(this, outer, inner);
+	}
+
+private Bundle installContentTypes(String tag, int numberOfLevels, int nodesPerLevel) {
 		TestRegistryChangeListener listener = new TestRegistryChangeListener(Platform.PI_RUNTIME, ContentTypeBuilder.PT_CONTENTTYPES, null, null);
 		listener.register();
 		IPath pluginLocation = getRandomLocation();
@@ -163,7 +193,8 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 				writer.write(System.getProperty("line.separator"));
 				writer.write("<extension point=\"org.eclipse.core.runtime.contentTypes\">");
 				writer.write(System.getProperty("line.separator"));
-				createContentTypes(writer, null, 0, numberOfLevels, nodesPerLevel);
+				String root = generateContentType(writer, 0, null);
+				createContentTypes(writer, root, 1, numberOfLevels, nodesPerLevel);
 				writer.write("</extension></plugin>");
 			} catch (IOException e) {
 				fail(tag + ".1.0", e);
@@ -186,9 +217,7 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 			listener.unregister();
 		}
 		return installed;
-	}
-
-	/**
+	}	/**
 	 * Returns a loaded content type manager. Except for load time tests, this method should
 	 * be called outside the scope of performance monitoring.
 	 */
@@ -212,27 +241,15 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 
 	/** Tests how much the size of the catalog affects the performance of content type matching by content analysis */
 	public void testContentMatching() {
-		// warm up preference service		
-		loadPreferences();
-		// warm up content type registry
-		final IContentTypeManager manager = loadContentTypeManager();
-		loadDescribers();
-		new PerformanceTestRunner() {
-			protected void test() {
-				IContentType[] associated = null;
-				try {
-					associated = manager.findContentTypesFor(getRandomContents(), null);
-				} catch (IOException e) {
-					fail("2.0", e);
-				}
-				// we know at least the text content type should be there
-				assertTrue("2.1", associated.length >= 1);
-				for (int i = 0; i < associated.length; i++)
-					if (associated[i].getId().equals(IContentTypeManager.CT_TEXT))
-						return;
-				fail("2.2");
-			}
-		}.run(this, 10, 100);
+		doTestContentMatching(DEFAULT_NAME, getRandomString(), 10, 1);
+	}
+
+	public void testContentTXTMatching() {
+		doTestContentMatching(getRandomString(), "foo.txt", 1, 200000);
+	}
+
+	public void testContentXMLMatching() {
+		doTestContentMatching(getRandomString(), "foo.xml", 1, 100000);
 	}
 
 	public void testDoSetUp() {
@@ -259,15 +276,17 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 		loadPreferences();
 		// warm up content type registry
 		final IContentTypeManager manager = loadContentTypeManager();
-		final IContentType lastRoot = manager.getContentType(getContentTypeId(ELEMENTS_PER_LEVEL));
-		assertNotNull("2.0", lastRoot);
-		final IContentType lastLeaf = manager.getContentType(getContentTypeId(NUMBER_OF_ELEMENTS));
-		assertNotNull("2.1", lastLeaf);
+		final IContentType root = manager.getContentType(getContentTypeId(0));
+		assertNotNull("2.0", root);
 		new PerformanceTestRunner() {
 			protected void test() {
-				assertTrue("3.0", lastLeaf.isKindOf(lastRoot));
+				for (int i = 0; i < NUMBER_OF_ELEMENTS; i++) {
+					IContentType type = manager.getContentType(getContentTypeId(i));
+					assertNotNull("3.0." + i, type);
+					assertTrue("3.1." + i, type.isKindOf(root));
+				}
 			}
-		}.run(this, 10, 100000);
+		}.run(this, 10, 15);
 	}
 
 	/**
