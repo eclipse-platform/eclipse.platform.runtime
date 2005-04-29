@@ -35,9 +35,8 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 	private static final String DEFAULT_NAME = "file_" + ContentTypePerformanceTest.class.getName();
 	private static final int ELEMENTS_PER_LEVEL = 4;
 	private static final int NUMBER_OF_LEVELS = 4;
-	private static final int NUMBER_OF_ELEMENTS = computeTotalTypes(NUMBER_OF_LEVELS, ELEMENTS_PER_LEVEL);
-
 	private static final String TEST_DATA_ID = "org.eclipse.core.tests.runtime.contenttype.perf.testdata";
+	private static final int TOTAL_NUMBER_OF_ELEMENTS = computeTotalTypes(NUMBER_OF_LEVELS, ELEMENTS_PER_LEVEL);
 
 	private static int computeTotalTypes(int levels, int elementsPerLevel) {
 		double sum = 0;
@@ -46,7 +45,26 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 		return (int) sum;
 	}
 
-	private static String createContentType(int number, String id, String baseTypeId, String[] fileNames, String[] fileExtensions) {
+	private static String createContentType(Writer writer, int number, String baseTypeId) throws IOException {
+		String id = "performance" + number;
+		String definition = generateContentType(number, id, baseTypeId, new String[] {DEFAULT_NAME}, null);
+		writer.write(definition);
+		writer.write(System.getProperty("line.separator"));
+		return id;
+	}
+
+	public static int createContentTypes(Writer writer, String baseTypeId, int created, int numberOfLevels, int nodesPerLevel) throws IOException {
+		if (numberOfLevels == 0)
+			return 0;
+		int local = nodesPerLevel;
+		for (int i = 0; i < nodesPerLevel; i++) {
+			String id = createContentType(writer, created + i, baseTypeId);
+			local += createContentTypes(writer, id, created + local, numberOfLevels - 1, nodesPerLevel);
+		}
+		return local;
+	}
+
+	private static String generateContentType(int number, String id, String baseTypeId, String[] fileNames, String[] fileExtensions) {
 		StringBuffer result = new StringBuffer();
 		result.append("<content-type id=\"");
 		result.append(id);
@@ -76,25 +94,6 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 		return result.toString();
 	}
 
-	public static int createContentTypes(Writer writer, String baseTypeId, int created, int numberOfLevels, int nodesPerLevel) throws IOException {
-		if (numberOfLevels == 0)
-			return 0;
-		int local = nodesPerLevel;
-		for (int i = 0; i < nodesPerLevel; i++) {
-			String id = generateContentType(writer, created + i, baseTypeId);
-			local += createContentTypes(writer, id, created + local, numberOfLevels - 1, nodesPerLevel);
-		}
-		return local;
-	}
-
-	private static String generateContentType(Writer writer, int number, String baseTypeId) throws IOException {
-		String id = "performance" + number;
-		String definition = createContentType(number, id, baseTypeId, number > 0 ? null : new String[] {DEFAULT_NAME}, null);
-		writer.write(definition);
-		writer.write(System.getProperty("line.separator"));
-		return id;
-	}
-
 	private static String getContentTypeId(int i) {
 		return TEST_DATA_ID + ".performance" + i;
 	}
@@ -122,6 +121,8 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 
 		//		suite.addTest(new ContentTypePerformanceTest("testDoSetUp"));
 		//		suite.addTest(new ContentTypePerformanceTest("testContentMatching"));
+		//		suite.addTest(new ContentTypePerformanceTest("testContentTXTMatching"));
+		//		suite.addTest(new ContentTypePerformanceTest("testContentXMLMatching"));
 		//		suite.addTest(new ContentTypePerformanceTest("testDoTearDown"));
 
 		SessionTestSuite setUp = new SessionTestSuite(PI_RUNTIME_TESTS, "testDoSetUp");
@@ -178,6 +179,7 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 		// warm up content type registry
 		final IContentTypeManager manager = loadContentTypeManager();
 		loadDescribers();
+		loadChildren();
 		new PerformanceTestRunner() {
 			protected void test() {
 				try {
@@ -211,7 +213,7 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 				writer.write(System.getProperty("line.separator"));
 				writer.write("<extension point=\"org.eclipse.core.runtime.contentTypes\">");
 				writer.write(System.getProperty("line.separator"));
-				String root = generateContentType(writer, 0, null);
+				String root = createContentType(writer, 0, null);
 				createContentTypes(writer, root, 1, numberOfLevels, nodesPerLevel);
 				writer.write("</extension></plugin>");
 			} catch (IOException e) {
@@ -238,6 +240,22 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 	}
 
 	/**
+	 * Warms up the content type registry. 
+	 */
+	private void loadChildren() {
+		final IContentTypeManager manager = Platform.getContentTypeManager();
+		IContentType[] allTypes = manager.getAllContentTypes();
+		for (int i = 0; i < allTypes.length; i++) {
+			String[] fileNames = allTypes[i].getFileSpecs(IContentType.IGNORE_USER_DEFINED | IContentType.FILE_NAME_SPEC);
+			for (int j = 0; j < fileNames.length; j++)
+				manager.findContentTypeFor(fileNames[j]);
+			String[] fileExtensions = allTypes[i].getFileSpecs(IContentType.IGNORE_USER_DEFINED | IContentType.FILE_EXTENSION_SPEC);
+			for (int j = 0; j < fileExtensions.length; j++)
+				manager.findContentTypeFor("anyname." + fileExtensions[j]);
+		}
+	}
+
+	/**
 	 * Returns a loaded content type manager. Except for load time tests, this method should
 	 * be called outside the scope of performance monitoring.
 	 */
@@ -261,15 +279,15 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 
 	/** Tests how much the size of the catalog affects the performance of content type matching by content analysis */
 	public void testContentMatching() {
-		// warm up preference service		
 		loadPreferences();
 		// warm up content type registry
 		final IContentTypeManager manager = loadContentTypeManager();
 		loadDescribers();
+		loadChildren();
 		new PerformanceTestRunner() {
 			protected void test() {
 				try {
-					for (int i = 0; i < NUMBER_OF_ELEMENTS; i += 10) {
+					for (int i = 0; i < TOTAL_NUMBER_OF_ELEMENTS; i++) {
 						String id = getContentTypeId(i);
 						IContentType[] result = manager.findContentTypesFor(new ByteArrayInputStream(getSignature(i)), DEFAULT_NAME);
 						assertEquals("1.0." + i, 1, result.length);
@@ -314,11 +332,12 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 		loadPreferences();
 		// warm up content type registry
 		final IContentTypeManager manager = loadContentTypeManager();
+		loadChildren();
 		final IContentType root = manager.getContentType(getContentTypeId(0));
 		assertNotNull("2.0", root);
 		new PerformanceTestRunner() {
 			protected void test() {
-				for (int i = 0; i < NUMBER_OF_ELEMENTS; i++) {
+				for (int i = 0; i < TOTAL_NUMBER_OF_ELEMENTS; i++) {
 					IContentType type = manager.getContentType(getContentTypeId(i));
 					assertNotNull("3.0." + i, type);
 					assertTrue("3.1." + i, type.isKindOf(root));
@@ -340,7 +359,7 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 			}
 		}.run(this, 1, /* must run only once - the suite controls how many sessions are run */1);
 		// sanity check to make sure we are running with good data		
-		assertEquals("missing content types", NUMBER_OF_ELEMENTS, countTestContentTypes(Platform.getContentTypeManager().getAllContentTypes()));
+		assertEquals("missing content types", TOTAL_NUMBER_OF_ELEMENTS, countTestContentTypes(Platform.getContentTypeManager().getAllContentTypes()));
 	}
 
 	/** Tests how much the size of the catalog affects the performance of content type matching by name */
@@ -350,6 +369,7 @@ public class ContentTypePerformanceTest extends RuntimeTest {
 		// warm up content type registry
 		final IContentTypeManager manager = loadContentTypeManager();
 		loadDescribers();
+		loadChildren();
 		new PerformanceTestRunner() {
 			protected void test() {
 				IContentType[] associated = manager.findContentTypesFor("foo.txt");
