@@ -29,7 +29,10 @@ public class StartupTest extends TestCase {
 			meter.stop();
 			// tag for showing in the performance fingerprint graph
 			Performance.getDefault().tagAsGlobalSummary(meter, "Core Headless Startup", Dimension.ELAPSED_PROCESS);
-			meter.commit();
+			String reportOption = System.getProperty("eclipseTest.ReportResults");
+			boolean bReport = (reportOption == null) ? true : !("false".equalsIgnoreCase(reportOption));
+			if (bReport)
+				meter.commit();
 			Performance.getDefault().assertPerformanceInRelativeBand(meter, Dimension.ELAPSED_PROCESS, -100, 5);
 		} finally {
 			meter.dispose();
