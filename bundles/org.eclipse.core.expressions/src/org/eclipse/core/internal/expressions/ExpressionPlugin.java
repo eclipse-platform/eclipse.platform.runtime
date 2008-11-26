@@ -11,12 +11,15 @@
 package org.eclipse.core.internal.expressions;
 
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.BundleListener;
 
 import org.eclipse.core.runtime.Plugin;
 
 public class ExpressionPlugin extends Plugin {
 	
 	private static ExpressionPlugin fgDefault;
+	
+	static BundleListener fgBundleListener;
 	
 	private BundleContext fBundleContext;
 	
@@ -44,6 +47,9 @@ public class ExpressionPlugin extends Plugin {
 	 * {@inheritDoc}
 	 */
 	public void stop(BundleContext context) throws Exception {
+		if (fgBundleListener != null)
+			context.removeBundleListener(fgBundleListener);
+		fgBundleListener= null;
 		super.stop(context);
 	}
 	
