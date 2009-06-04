@@ -159,7 +159,7 @@ public final class ContentTypeCatalog {
 		return result[0];
 	}
 
-	private void associate(ContentType contentType) {
+	void associate(ContentType contentType) {
 		String[] builtInFileNames = contentType.getFileSpecs(IContentType.IGNORE_USER_DEFINED | IContentType.FILE_NAME_SPEC);
 		for (int i = 0; i < builtInFileNames.length; i++)
 			associate(contentType, builtInFileNames[i], IContentType.FILE_NAME_SPEC);
@@ -279,7 +279,7 @@ public final class ContentTypeCatalog {
 		return (IContentType[]) result.toArray(new IContentType[result.size()]);
 	}
 
-	private ContentType[] getChildren(ContentType parent) {
+	public ContentType[] getChildren(ContentType parent) {
 		ContentType[] children = (ContentType[]) allChildren.get(parent);
 		if (children != null)
 			return children;
@@ -329,7 +329,7 @@ public final class ContentTypeCatalog {
 		return manager;
 	}
 
-	private boolean internalAccept(ContentTypeVisitor visitor, ContentType root) {
+	public boolean internalAccept(ContentTypeVisitor visitor, ContentType root) {
 		if (!root.isValid() || root.isAlias())
 			return true;
 		int result = visitor.visit(root);
@@ -352,7 +352,7 @@ public final class ContentTypeCatalog {
 		return true;
 	}
 
-	private IContentType[] internalFindContentTypesFor(ILazySource buffer, IContentType[][] subset, Comparator validPolicy, Comparator indeterminatePolicy) throws IOException {
+	public IContentType[] internalFindContentTypesFor(ILazySource buffer, IContentType[][] subset, Comparator validPolicy, Comparator indeterminatePolicy) throws IOException {
 		final List appropriate = new ArrayList(5);
 		final int validFullName = collectMatchingByContents(0, subset[0], appropriate, buffer);
 		final int appropriateFullName = appropriate.size();
@@ -412,7 +412,7 @@ public final class ContentTypeCatalog {
 	 * @return all matching content types in the preferred order 
 	 * @see IContentTypeManager#findContentTypesFor(String)
 	 */
-	synchronized private IContentType[][] internalFindContentTypesFor(ContentTypeMatcher matcher, final String fileName, Comparator sortingPolicy) {
+	synchronized public IContentType[][] internalFindContentTypesFor(ContentTypeMatcher matcher, final String fileName, Comparator sortingPolicy) {
 		IScopeContext context = matcher.getContext();
 		IContentType[][] result = {NO_CONTENT_TYPES, NO_CONTENT_TYPES};
 
@@ -459,7 +459,7 @@ public final class ContentTypeCatalog {
 	 *	</ul>
 	 * @return a set of content types
 	 */
-	private Set getDirectlyAssociated(String text, int typeMask) {
+	public Set getDirectlyAssociated(String text, int typeMask) {
 		Map associations = (typeMask & IContentTypeSettings.FILE_NAME_SPEC) != 0 ? fileNames : fileExtensions;
 		Set result = null;
 		if ((typeMask & (IContentType.IGNORE_PRE_DEFINED | IContentType.IGNORE_USER_DEFINED)) == 0)
@@ -487,7 +487,7 @@ public final class ContentTypeCatalog {
 		return (ContentType) contentTypes.get(contentTypeIdentifier);
 	}
 
-	private void makeAliases() {
+	void makeAliases() {
 		// process all content types marking aliases appropriately
 		for (Iterator i = contentTypes.values().iterator(); i.hasNext();) {
 			ContentType type = (ContentType) i.next();
