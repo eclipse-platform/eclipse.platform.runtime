@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 IBM Corporation and others.
+ * Copyright (c) 2004, 2010 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -28,7 +28,6 @@ import org.eclipse.core.runtime.content.ITextContentDescriber;
  */
 public class XMLContentDescriber extends TextContentDescriber implements ITextContentDescriber {
 	private static final QualifiedName[] SUPPORTED_OPTIONS = new QualifiedName[] {IContentDescription.CHARSET, IContentDescription.BYTE_ORDER_MARK};
-	private static final String ENCODING = "encoding="; //$NON-NLS-1$
 	private static final String XML_PREFIX = "<?xml "; //$NON-NLS-1$
 
 	public int describe(InputStream input, IContentDescription description) throws IOException {
@@ -98,7 +97,7 @@ public class XMLContentDescriber extends TextContentDescriber implements ITextCo
 	}
 
 	private String getCharset(String firstLine) {
-		int encodingPos = firstLine.indexOf(ENCODING);
+		int encodingPos = findEncodingPosition(firstLine);
 		if (encodingPos == -1)
 			return null;
 		char quoteChar = '"';
@@ -107,12 +106,35 @@ public class XMLContentDescriber extends TextContentDescriber implements ITextCo
 			quoteChar = '\'';
 			firstQuote = firstLine.indexOf(quoteChar, encodingPos);
 		}
-		if (firstQuote == -1 || firstLine.length() == firstQuote - 1)
+		if (firstQuote == -1 || firstLine.length() == firstQuote + 1)
 			return null;
 		int secondQuote = firstLine.indexOf(quoteChar, firstQuote + 1);
 		if (secondQuote == -1)
 			return null;
 		return firstLine.substring(firstQuote + 1, secondQuote);
+	}
+	
+	private int findEncodingPosition(String line) {
+		String encoding = "encoding"; //$NON-NLS-1$
+		int fromIndex = 0;
+		int position = 0;
+		while ((position = line.indexOf(encoding, fromIndex)) != -1) {
+			boolean equals = false;
+			fromIndex = position + encoding.length();
+			for (int i = fromIndex; i < line.length(); i++) {
+				char c = line.charAt(i);
+				if (c == '=' && !equals) {
+					equals = true;
+				} else if (c == 0x20 || c == 0x09 || c == 0x0D || c == 0x0A) {
+					// white space characters to ignore
+				} else if ((c == '"' || c == '\'') && equals) {
+						return position;
+				} else {
+					break;
+				}
+			}
+		}
+		return -1;
 	}
 
 	public QualifiedName[] getSupportedOptions() {
