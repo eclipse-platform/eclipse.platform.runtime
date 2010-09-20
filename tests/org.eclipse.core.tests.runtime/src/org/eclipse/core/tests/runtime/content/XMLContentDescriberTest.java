@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2006 IBM Corporation and others.
+ * Copyright (c) 2004, 2010 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -25,6 +25,7 @@ public class XMLContentDescriberTest extends RuntimeTest {
 	private final static String ENCODED_TEXT = "\u1000\u20001\u3000\u4000\u5000\u6000\u7000\u8000\u9000\uA000";
 	private final static String ENCODING = "UTF16";
 	private final static String XML_WITH_ENCODED_DATA = "<?xml version=\"1.0\" encoding=\"" + ENCODING + "\"?><root attribute=\"" + ENCODED_TEXT + "\">";
+	private final static String XML_WITH_ENCODED_DATA_BUG325474 = "<?xml version=\"1.0\" encoding  =\"" + ENCODING + "\"?><root attribute=\"" + ENCODED_TEXT + "\">";
 
 	public XMLContentDescriberTest() {
 		super();
@@ -36,6 +37,13 @@ public class XMLContentDescriberTest extends RuntimeTest {
 
 	public void testEncodedContents() throws Exception {
 		IContentDescription description = Platform.getContentTypeManager().getDescriptionFor(new ByteArrayInputStream(XML_WITH_ENCODED_DATA.getBytes(ENCODING)), "fake.xml", new QualifiedName[] {IContentDescription.CHARSET});
+		assertNotNull("1.0", description);
+		assertEquals("1.1", Platform.PI_RUNTIME + ".xml", description.getContentType().getId());
+		assertEquals("1.2", ENCODING, description.getProperty(IContentDescription.CHARSET));
+	}
+	
+	public void testEncodedContents_Bug325474() throws Exception {
+		IContentDescription description = Platform.getContentTypeManager().getDescriptionFor(new ByteArrayInputStream(XML_WITH_ENCODED_DATA_BUG325474.getBytes(ENCODING)), "fake.xml", new QualifiedName[] {IContentDescription.CHARSET});
 		assertNotNull("1.0", description);
 		assertEquals("1.1", Platform.PI_RUNTIME + ".xml", description.getContentType().getId());
 		assertEquals("1.2", ENCODING, description.getProperty(IContentDescription.CHARSET));
