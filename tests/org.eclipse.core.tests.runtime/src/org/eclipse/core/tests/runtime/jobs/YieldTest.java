@@ -839,7 +839,7 @@ public class YieldTest extends AbstractJobManagerTest {
 		final TestBarrier barrier = new TestBarrier();
 		final PathRule rule = new PathRule(getName());
 
-		final int count = 100;
+		final int count = 50;
 		Job yieldA = new Job(getName() + " YieldingA") {
 			protected IStatus run(IProgressMonitor monitor) {
 				barrier.waitForStatus(TestBarrier.STATUS_START);
@@ -878,7 +878,7 @@ public class YieldTest extends AbstractJobManagerTest {
 
 		// wait for jobs to start
 		try {
-			Thread.sleep(1000);
+			Thread.sleep(10000);
 		} catch (InterruptedException e) {
 			fail("4.99", e);
 		}

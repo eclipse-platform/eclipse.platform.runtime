@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2010 IBM Corporation and others.
+ * Copyright (c) 2004, 2011 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -262,11 +262,13 @@ class ThreadJob extends Job {
 					try {
 						// Wait until we are no longer definitely blocked (not running). 
 						// The actual exit conditions are listed above at the beginning of
-						// this while loop. 
-						if (blockingJob.getState() == Job.RUNNING)
-							// If we canBlock do not use a timeout value. Otherwise, 
-							// timeout and recheck conditions other than #1 (above). 
-							blockingJob.jobStateLock.wait(canBlock ? 0 : 250);
+						// this while loop
+						int state = blockingJob.getState();
+						//ensure we don't wait forever if the blocker is waiting, because it might have yielded to me
+						if (state == Job.RUNNING && canBlock)
+							blockingJob.jobStateLock.wait();
+						else if (state != Job.NONE)
+							blockingJob.jobStateLock.wait(250);
 					} catch (InterruptedException e) {
 						// This thread may be interrupted via two common scenarios. 1) If
 						// the UISynchronizer is in use and this thread is a UI thread
