@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2003, 2007 IBM Corporation and others.
+ * Copyright (c) 2003, 2011 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -225,6 +225,9 @@ class WorkerPool {
 						return null;
 					}
 				}
+				//if we didn't sleep but there was no job available, make sure we sleep to avoid a tight loop (bug 260724)
+				if (hint <= 0 && job == null)
+					sleep(50);
 			}
 			if (job != null) {
 				//if this job has a rule, then we are essentially acquiring a lock
