@@ -240,7 +240,7 @@ class WorkerPool {
 					manager.getLockManager().addLockThread(Thread.currentThread(), job.getRule());
 				}
 				//see if we need to wake another worker
-				if (manager.sleepHint() <= 0)
+				if (manager.sleepHint() < InternalJob.T_INFINITE)
 					jobQueued();
 			}
 		} finally {
