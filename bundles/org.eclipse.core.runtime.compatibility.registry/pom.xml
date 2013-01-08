@@ -21,6 +21,13 @@
   </parent>
   <groupId>org.eclipse.platform.runtime</groupId>
   <artifactId>org.eclipse.core.runtime.compatibility.registry</artifactId>
-  <version>3.5.100-SNAPSHOT</version>
+  <version>3.5.101-SNAPSHOT</version>
   <packaging>eclipse-plugin</packaging>
+  <build>
+    <resources>
+      <resource>
+        <directory>classes</directory>
+      </resource>
+    </resources>
+  </build>
 </project>
