@@ -38,10 +38,8 @@
     <module>bundles/org.eclipse.core.runtime</module>
     <module>bundles/org.eclipse.core.runtime.compatibility</module>
     <module>bundles/org.eclipse.core.runtime.compatibility.registry</module>
-    <module>bundles/org.eclipse.core.tools</module>
 
     <module>features/org.eclipse.core.runtime.feature</module>
-    <module>features/org.eclipse.core.tools-feature</module>
 
     <module>tests/org.eclipse.core.expressions.tests</module>
     <module>tests/org.eclipse.core.tests.harness</module>
