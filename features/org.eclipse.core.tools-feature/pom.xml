@@ -14,7 +14,7 @@
   <parent>
     <artifactId>eclipse.platform.runtime</artifactId>
     <groupId>eclipse.platform.runtime</groupId>
-    <version>4.6.2-SNAPSHOT</version>
+    <version>4.6.3-SNAPSHOT</version>
     <relativePath>../../</relativePath>
   </parent>
   <groupId>org.eclipse.core.feature</groupId>

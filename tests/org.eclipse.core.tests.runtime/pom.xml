@@ -16,7 +16,7 @@
   <parent>
     <artifactId>eclipse.platform.runtime.tests</artifactId>
     <groupId>eclipse.platform.runtime</groupId>
-    <version>4.6.2-SNAPSHOT</version>
+    <version>4.6.3-SNAPSHOT</version>
   </parent>
   <groupId>org.eclipse.core</groupId>
   <artifactId>org.eclipse.core.tests.runtime</artifactId>
