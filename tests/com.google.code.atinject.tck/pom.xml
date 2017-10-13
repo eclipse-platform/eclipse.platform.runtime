@@ -15,7 +15,7 @@
   <parent>
     <artifactId>eclipse.platform.runtime.tests</artifactId>
     <groupId>eclipse.platform.runtime</groupId>
-    <version>4.7.1-SNAPSHOT</version>
+    <version>4.7.2-SNAPSHOT</version>
   </parent>
   <groupId>com.google.code</groupId>
   <artifactId>com.google.code.atinject.tck</artifactId>
