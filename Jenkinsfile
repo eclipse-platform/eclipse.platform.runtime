@@ -3,7 +3,6 @@ pipeline {
 		timeout(time: 40, unit: 'MINUTES')
 		buildDiscarder(logRotator(numToKeepStr:'5'))
 		disableConcurrentBuilds(abortPrevious: true)
-		timestamps()
 	}
 	agent {
 		label "centos-latest"
@@ -22,7 +21,7 @@ pipeline {
 						-DskipTests=false -Dcompare-version-with-baselines.skip=false \
 						-Dmaven.test.error.ignore=true -Dmaven.test.failure.ignore=true \
 						-Dmaven.compiler.failOnWarning=true -Dproject.build.sourceEncoding=UTF-8 \
-						-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS \
+						-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSSZ \
 						-DtrimStackTrace=false 
 					"""
 				}
