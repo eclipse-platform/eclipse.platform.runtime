@@ -21,7 +21,7 @@ pipeline {
 						-DskipTests=false -Dcompare-version-with-baselines.skip=false \
 						-Dmaven.test.error.ignore=true -Dmaven.test.failure.ignore=true \
 						-Dmaven.compiler.failOnWarning=true -Dproject.build.sourceEncoding=UTF-8 \
-						-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSSX \
+						-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS \
 						-DtrimStackTrace=false 
 					"""
 				}
