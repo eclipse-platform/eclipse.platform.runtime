@@ -26,8 +26,13 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import junit.framework.AssertionFailedError;
+import junit.framework.Test;
 import junit.framework.TestCase;
+import junit.framework.TestListener;
+import junit.framework.TestResult;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -46,6 +51,53 @@ public class CoreTest extends TestCase {
 
 	// plug-in identified for the core.tests.harness plug-in.
 	public static final String PI_HARNESS = "org.eclipse.core.tests.harness";
+
+	@Override
+	public void run(TestResult result) {
+		TestListener listener = new TestListener() {
+
+			@Override
+			public void startTest(Test test) {
+				log(IStatus.INFO, getFullName(), "Start");
+			}
+
+			@Override
+			public void addError(Test test, Throwable e) {
+				log(IStatus.ERROR, getFullName(), "Error:", e);
+			}
+
+			@Override
+			public void addFailure(Test test, AssertionFailedError e) {
+				log(IStatus.ERROR, getFullName(), "Failure:", e);
+			}
+
+			@Override
+			public void endTest(Test test) {
+				log(IStatus.INFO, getFullName(), "End");
+			}
+		};
+		result.addListener(listener);
+		super.run(result);
+		result.removeListener(listener);
+	}
+
+	private String getFullName() {
+		return getClass().getName() + "." + getName();
+	}
+
+	private void log(int severity, String owner, String message, Throwable... optionalError) {
+//		message = "[" + owner + "] " + message;
+//		Throwable error = null;
+//		if (optionalError != null && optionalError.length > 0) {
+//			error = optionalError[0];
+//		}
+//		Status status = new Status(severity, this.getClass(), message, error);
+//		InternalPlatform.getDefault().getLog(Platform.getBundle(status.getPlugin())).log(status);
+		System.out.println(new SimpleDateFormat("HH:mm:ss.SSSS ").format(new Date()) + owner + ": " + message);
+		for (Throwable e : optionalError) {
+			e.printStackTrace(System.out);
+		}
+	}
 
 	public static void debug(String message) {
 		String id = "org.eclipse.core.tests.harness/debug";
