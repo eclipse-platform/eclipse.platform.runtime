@@ -20,6 +20,6 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ EclipsePreferencesTest.class, PreferencesServiceTest.class, IScopeContextTest.class,
 		TestBug388004.class, TestBug380859.class, PreferenceExportTest.class, PreferenceForwarderTest.class,
-		PreferencesTest.class })
+		PreferencesTest.class, ServiceLookupTest.class })
 public class AllTests {
 }

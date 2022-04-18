@@ -11,13 +11,15 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *     Lars Vogel <Lars.Vogel@vogella.com> - Bug 476403, 478769, 490586
- *     Christoph Läubrich - remove reference to InternalPlatform.getDefault().log
+ *     Christoph Läubrich 	- remove reference to InternalPlatform.getDefault().log
+ *     						- Issue #27 - Provide a Plugin#getOSGiService method
  *******************************************************************************/
 package org.eclipse.core.runtime;
 
 import java.io.*;
 import java.net.URL;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.*;
 import org.eclipse.core.internal.runtime.*;
 import org.eclipse.core.runtime.preferences.*;
 import org.eclipse.osgi.service.datalocation.Location;
@@ -126,7 +128,7 @@ public abstract class Plugin implements BundleActivator {
 	/**
 	 * The bundle associated this plug-in
 	 */
-	private Bundle bundle;
+	private volatile Bundle bundle;
 
 	private volatile IPath stateLocation;
 
@@ -136,10 +138,7 @@ public abstract class Plugin implements BundleActivator {
 	 */
 	private boolean debug = false;
 
-	/**
-	 * DebugOptions service tracker
-	 */
-	private ServiceTracker<DebugOptions,DebugOptions> debugTracker = null;
+	private ConcurrentMap<Class<?>, Tracking<?>> serviceTrackers = new ConcurrentHashMap<>();
 
 	/**
 	 * The base name (value <code>"preferences"</code>) for the file which is used for
@@ -354,7 +353,7 @@ public abstract class Plugin implements BundleActivator {
 			// need to save them because someone else might have
 			// made changes via the OSGi APIs.
 			getPluginPreferences();
-	
+
 			// Performance: isolate PreferenceForwarder and BackingStoreException into
 			// an inner class to avoid class loading (and then activation of the Preferences plugin)
 			// as the Plugin class is loaded.
@@ -527,6 +526,63 @@ public abstract class Plugin implements BundleActivator {
 	}
 
 	/**
+	 * Try to acquire a single service from the OSGi service factory (e.g.
+	 * DebugOptions, IWorkspace, IPreferenceService, ...)
+	 *
+	 * @param serviceType type of the service to acquire
+	 * @return an optional representing the acquired service or an empty optional if
+	 *         there is (currently) no service available or the plugin is shut down
+	 * @since 3.25
+	 */
+	public <T> Optional<T> lookup(Class<T> serviceType) {
+		ServiceTracker<?, ?> serviceTracker = getTracker(serviceType);
+		if (serviceTracker == null) {
+			return Optional.empty();
+		}
+		return Optional.ofNullable(serviceTracker.getService()).map(serviceType::cast);
+	}
+
+	/**
+	 * Tracks a given service and returns a {@link CompletableFuture} that contains
+	 * the result of the service once it becomes available.
+	 *
+	 * @param serviceType type of the service to acquire
+	 * @return a {@link CompletableFuture} that could be used to be notified once
+	 *         the service is available, if there is already a service available the
+	 *         future will be completed immediately, if the plugin is shut down, a
+	 *         failed future is returned.
+	 *
+	 * @since 3.25
+	 */
+	public <T> CompletableFuture<T> track(Class<T> serviceType) {
+		Tracking<?> serviceTracker = getTracker(serviceType);
+		if (serviceTracker == null) {
+			return CompletableFuture.failedFuture(new IllegalStateException("Plugin is not started (yet).")); //$NON-NLS-1$
+		}
+		CompletableFuture<Object> future = new CompletableFuture<>();
+		serviceTracker.track(future);
+		return future.thenApply(serviceType::cast);
+	}
+
+
+	private <T> Tracking<?> getTracker(Class<T> serviceType) {
+		Tracking<?> serviceTracker = serviceTrackers.computeIfAbsent(serviceType, key -> {
+			Bundle b = bundle;
+			if (b == null) {
+				return null;
+			}
+			BundleContext bundleContext = b.getBundleContext();
+			if (bundleContext == null) {
+				return null;
+			}
+			Tracking<?> tracker = new Tracking<>(bundleContext, key);
+			tracker.open();
+			return tracker;
+		});
+		return serviceTracker;
+	}
+
+	/**
 	 * Returns the DebugOptions instance
 	 *
 	 * @since 3.5
@@ -536,14 +592,8 @@ public abstract class Plugin implements BundleActivator {
 		Bundle debugBundle = getBundle();
 		if (debugBundle == null)
 			return null;
-		if (debugTracker == null) {
-			BundleContext context = debugBundle.getBundleContext();
-			if (context == null)
-				return null;
-			debugTracker = new ServiceTracker<>(context, DebugOptions.class.getName(), null);
-			debugTracker.open();
-		}
-		return this.debugTracker.getService();
+
+		return lookup(DebugOptions.class).orElse(null);
 	}
 
 	/**
@@ -690,11 +740,9 @@ public abstract class Plugin implements BundleActivator {
 	 */
 	@Override
 	public void stop(BundleContext context) throws Exception {
-
-		if (this.debugTracker != null) {
-			this.debugTracker.close();
-			this.debugTracker = null;
-		}
+		bundle = null;
+		serviceTrackers.values().forEach(ServiceTracker::close);
+		serviceTrackers.clear();
 		// sub-classes to override
 	}
 
@@ -711,5 +759,40 @@ public abstract class Plugin implements BundleActivator {
 		if (cl instanceof BundleReference)
 			return ((BundleReference) cl).getBundle();
 		return null;
+	}
+
+	private static final class Tracking<S> extends ServiceTracker<S, S> {
+
+		private List<CompletableFuture<Object>> pending = new ArrayList<>(1);
+
+		public Tracking(BundleContext context, Class<S> clazz) {
+			super(context, clazz, null);
+		}
+
+		public void track(CompletableFuture<Object> future) {
+			synchronized (pending) {
+				S service = getService();
+				if (service == null) {
+					pending.add(future);
+				} else {
+					future.completeAsync(() -> service);
+				}
+			}
+		}
+
+		@Override
+		public S addingService(ServiceReference<S> reference) {
+			S service = super.addingService(reference);
+			synchronized (pending) {
+				if (service != null && pending.size() > 0) {
+					for (CompletableFuture<Object> completableFuture : pending) {
+						completableFuture.completeAsync(() -> service);
+					}
+					pending.clear();
+				}
+				return service;
+			}
+		}
+
 	}
 }
