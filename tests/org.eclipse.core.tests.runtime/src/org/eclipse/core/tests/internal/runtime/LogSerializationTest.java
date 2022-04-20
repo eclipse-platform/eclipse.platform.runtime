@@ -208,6 +208,7 @@ public class LogSerializationTest extends RuntimeTest {
 	}
 
 	public void testMultiStatus() {
+		fail("intentional Error");
 		IStatus[] interesting = getInterestingMultiStatuses();
 		for (int i = 0; i < interesting.length; i++) {
 			doTest("1." + i, interesting[i]);
