@@ -260,6 +260,14 @@ public class PlatformTest extends RuntimeTest {
 		}
 	}
 
+	@Test
+	public void testGetLog_noArgument() {
+		ILog staticLog = RuntimeTestsPlugin.getPlugin().getLog();
+		assertNotNull(staticLog);
+		ILog log = Platform.getThisClassLog();
+		assertSame(staticLog, log);
+	}
+
 	/**
 	 * Test for method {@link Platform#getBundles(String, String)}.
 	 * <p>
