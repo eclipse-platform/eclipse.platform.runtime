@@ -18,6 +18,7 @@ package org.eclipse.core.runtime;
 
 import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.*;
 import java.util.*;
 import org.eclipse.core.internal.runtime.*;
 import org.eclipse.core.runtime.content.IContentTypeManager;
@@ -484,6 +485,7 @@ public final class Platform {
 
 	private static final String LINE_SEPARATOR_VALUE_LF = "\n"; //$NON-NLS-1$
 	private static final String LINE_SEPARATOR_VALUE_CRLF = "\r\n"; //$NON-NLS-1$
+	private static Charset defaultCharset;
 
 	/**
 	 * Private constructor to block instance creation.
@@ -1461,5 +1463,48 @@ public final class Platform {
 	 */
 	public static boolean inDevelopmentMode() {
 		return PlatformActivator.getContext().getProperty("osgi.dev") != null; //$NON-NLS-1$
+	}
+
+	/**
+	 * Retrieves the <b>native</b> system encoding ({@link Charset}) based on the
+	 * system locale.
+	 * <p>
+	 * In case the detection of native encoding fails, returns
+	 * {@link Charset#defaultCharset()}, which is always {@code UTF-8} on Java 18
+	 * and later.
+	 *
+	 * @return the {@link Charset}, never null
+	 * @see <a href="https://openjdk.java.net/jeps/400">JEP 400</a>
+	 * @since 3.26
+	 */
+	public static Charset getNativeEncoding() {
+		Charset result = defaultCharset;
+		if (result == null) {
+			// JEP 400: Java 18 populates this system property.
+			String encoding = System.getProperty("native.encoding"); //$NON-NLS-1$
+			try {
+				if (encoding != null && !encoding.isBlank()) {
+					result = Charset.forName(encoding);
+				} else {
+					// JVM internal property, works on older JVM's too
+					encoding = System.getProperty("sun.jnu.encoding"); //$NON-NLS-1$
+					if (encoding != null && !encoding.isBlank()) {
+						result = Charset.forName(encoding);
+					}
+				}
+			} catch (IllegalCharsetNameException | UnsupportedCharsetException e) {
+				if (isRunning()) {
+					getLog(Platform.class).error("Unable to read system native encoding", e); //$NON-NLS-1$
+				} else {
+					e.printStackTrace();
+				}
+			}
+			if (result == null) {
+				// This is always UTF-8 on Java >= 18.
+				result = Charset.defaultCharset();
+			}
+			defaultCharset = result;
+		}
+		return result;
 	}
 }
